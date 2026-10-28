@@ -1,0 +1,13 @@
+node_modules
+dist
+*.local
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+.vercel
+.DS_Store
+
+# Optional scenery asset (CC BY 4.0, NoAI). Not committed; see README.
+*.glb
+!public/models/.gitkeep

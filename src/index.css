@@ -1,0 +1,16 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
+
+@theme {
+  --color-free: #4caf7a;
+  --color-reserved: #e2b33c;
+  --color-rendering: #2bb3a3;
+  --color-overdue: #e0524f;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
