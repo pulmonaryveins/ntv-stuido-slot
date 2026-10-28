@@ -1,5 +1,7 @@
 import * as Select from '@radix-ui/react-select'
 import { mockClient } from '../data'
+import { supabaseConfigured } from '../lib/supabase'
+import { useAuth } from '../store/auth'
 import { useStudio, type Speed, type TimeMode, type View } from '../store/studio'
 import { Button, Segmented } from './controls'
 
@@ -51,6 +53,8 @@ export function TopBar() {
         {s.theme === 'dark' ? '☀︎' : '☾'}
       </Button>
 
+      {supabaseConfigured && me && <AccountMenu name={me.name} color={me.avatar_color} />}
+
       {isAdmin && (
         <Button
           variant={s.page === 'admin' ? 'primary' : 'secondary'}
@@ -91,6 +95,20 @@ export function TopBar() {
         </div>
       )}
     </header>
+  )
+}
+
+/** Signed-in user and sign-out. */
+function AccountMenu({ name, color }: { name: string; color: string }) {
+  const signOut = useAuth((s) => s.signOut)
+  return (
+    <div className="flex items-center gap-2 text-sm">
+      <span aria-hidden className="size-3 rounded-full" style={{ background: color }} />
+      <span className="max-w-32 truncate font-medium">{name}</span>
+      <Button variant="ghost" onClick={() => void signOut()}>
+        Sign out
+      </Button>
+    </div>
   )
 }
 

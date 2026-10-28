@@ -37,16 +37,23 @@ rules as the SQL RPCs. The top bar shows a dashed **Dev** group (mock only):
 4. Generate types: `npm run db:types`
 5. `cp .env.example .env.local` and fill in the values, then `npm run dev`.
 
-### Disable public sign-up (required)
+### Registration and sign-in
 
-`supabase/config.toml` sets `enable_signup = false` for local dev. On the hosted project, also
-turn it off in **Dashboard → Authentication → Sign In / Providers → Allow new users to sign up**.
-Users join only through admin invites.
+Anyone can register with name, work role, email and password, then sign in. Passwords need at
+least 8 characters; "Forgot password?" sends a reset link. In **Dashboard → Authentication**:
 
-### First admin on a real project
+- **Sign In / Providers → Email**: keep "Allow new users to sign up" on. Turn "Confirm email"
+  off for the simplest flow (users are signed in right after registering), or leave it on to
+  require a confirmation click first.
+- **URL Configuration**: set *Site URL* to your app URL (`http://localhost:5173` locally, your
+  Vercel URL in production) and add the same to *Redirect URLs* (used by confirmation and reset
+  emails).
 
-Invite yourself from **Dashboard → Authentication → Users → Invite user**, accept the email,
-then run in the SQL editor:
+### Admin
+
+The **first account that registers becomes the admin** (migration `open_signup`); everyone after
+is a regular user. Admins can deactivate users (an inactive user sees an "Account inactive"
+screen). To promote someone later:
 
 ```sql
 update public.profiles set role = 'admin' where id = (select id from auth.users where email = 'you@example.com');

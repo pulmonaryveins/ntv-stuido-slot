@@ -1,6 +1,9 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { startStudio, useStudio } from './store/studio'
+import { initAuth, useAuth } from './store/auth'
+import { supabaseConfigured } from './lib/supabase'
+import { AuthScreen, InactiveScreen, LoadingScreen, NewPasswordScreen } from './ui/AuthScreen'
 import { TopBar } from './ui/TopBar'
 import { Panel } from './ui/Panel'
 import { ClaimDialog, RenderEtaDialog } from './ui/Dialogs'
@@ -9,23 +12,46 @@ import { AdminStub } from './ui/AdminStub'
 
 const Stage = lazy(() => import('./scene/Stage'))
 
+/** Auth gate: with Supabase configured, the board only mounts for a signed-in user. */
 export function App() {
+  const status = useAuth((s) => s.status)
+  const theme = useStudio((s) => s.theme)
+
+  useEffect(() => initAuth(), [])
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+  }, [theme])
+
+  if (!supabaseConfigured || status === 'signedIn') return <Board />
+  if (status === 'loading') return <LoadingScreen />
+  if (status === 'recovery') return <NewPasswordScreen />
+  return <AuthScreen />
+}
+
+function Board() {
   const view = useStudio((s) => s.view)
   const page = useStudio((s) => s.page)
-  const theme = useStudio((s) => s.theme)
   const loadError = useStudio((s) => s.loadError)
   // Mount the 3D stage on first use, then keep it (paused) so switching back is instant.
   const [stageMounted, setStageMounted] = useState(view === '3d')
 
-  useEffect(() => startStudio(), [])
+  const userId = useAuth((s) => s.userId)
+  const snapshot = useStudio((s) => s.snapshot)
+
   useEffect(() => {
-    document.documentElement.dataset.theme = theme
-  }, [theme])
+    if (supabaseConfigured) useStudio.setState({ actorId: userId })
+    startStudio()
+  }, [userId])
   useEffect(() => {
     if (view === '3d') setStageMounted(true)
   }, [view])
 
   const show3d = view === '3d' && page === 'board'
+
+  // RLS hides everything from deactivated users: profiles come back without their own row.
+  if (supabaseConfigured && userId && (loadError || (snapshot && !snapshot.profiles.some((p) => p.id === userId)))) {
+    return <InactiveScreen />
+  }
 
   return (
     <Tooltip.Provider>
