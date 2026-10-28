@@ -6,9 +6,25 @@ Nobody logs in to Adobe while all seats are full. The app never stores Adobe cre
 Stack: Vite + React + TypeScript, Tailwind v4, Radix UI, Zustand, three / R3F / drei,
 Supabase (Auth, Postgres + RLS, Realtime, Edge Functions, pg_cron), deployed on Vercel.
 
-> Status: phase 1 (schema, RLS, RPCs, seed, types). UI arrives in later phases.
+> Status: schema + RPCs, List view and 3D studio done. Auth, admin panel and notifications pending.
 
-## Setup
+## Run locally without Supabase (mock mode)
+
+```sh
+npm install
+npm run dev        # http://localhost:5173
+npm test           # Vitest: helpers + mock client rules
+```
+
+With no `VITE_SUPABASE_URL` the app uses an in-memory mock client that follows the same
+rules as the SQL RPCs. The top bar shows a dashed **Dev** group (mock only):
+
+- **Live demo**: simulated teammates claim, extend, break, render, queue and knock.
+- **Speed** 1× / 60× / 240×: mock clock speed. Timers always derive from timestamps.
+- **Acting as**: impersonate any seed user (including the admin). Dev tool only; it goes
+  away when auth lands.
+
+## Setup with Supabase
 
 1. `npm install`
 2. Create a Supabase project, then link it:
