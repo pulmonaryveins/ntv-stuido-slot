@@ -80,24 +80,29 @@ export interface DeskSpot {
 }
 
 /** Desk placement for each slot, derived from account order and slot number. */
+/** Cubicle geometry: back panel along z = CUBE_BACK, open toward +z (the camera). */
+export const CUBE_BACK = -6.0
+export const CUBE_FRONT = -3.2
+export const CUBE_W = 3.8
+
 export function deskSpots(slots: Slot[], accountIds: number[]): Map<number, DeskSpot> {
   const map = new Map<number, DeskSpot>()
   for (const s of slots) {
     const building = Math.max(0, Math.min(1, accountIds.indexOf(s.account_id)))
     const bx = buildingX(building)
     const side = s.slot_number % 2 === 1 ? -1 : 1
-    const dx = bx + side * 1.9
-    const desk: XZ = [dx, -3.4]
-    const chair: XZ = [dx, -4.55]
-    const aisle = bx + side * 3.25
+    const dx = bx + side * (CUBE_W / 2)
+    // Work surface against the back panel; the user sits facing it (back to the camera).
+    const desk: XZ = [dx, CUBE_BACK + 0.5]
+    const chair: XZ = [dx, CUBE_BACK + 1.5]
     map.set(s.id, {
       slotId: s.id,
       building,
       side,
       desk,
       chair,
-      knock: [dx, -2.15],
-      route: [HUB, [bx, -0.6], [aisle, -2.2], [aisle, -4.55], chair],
+      knock: [dx, CUBE_FRONT + 0.5],
+      route: [HUB, [dx, CUBE_FRONT + 1.6], chair],
     })
   }
   return map

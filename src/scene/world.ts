@@ -55,43 +55,15 @@ function room(w: VoxelWorld) {
   for (let j = 0; j < 4; j++) for (let k = dk - 1; k <= dk; k++) w.delete(leftI, j, k)
 }
 
-/**
- * Office booth for one Adobe account: carpet tiles, a drywall back wall with a glass clerestory,
- * a full-glass side partition in aluminium frames, metal corner posts, filing cabinet and plant.
- * Open at the front so the camera can see in.
- */
+/** Cubicle pod floor for one Adobe account: carpet tiles in the account colour, dark edge. */
 function studio(w: VoxelWorld, index: number) {
   const bx = buildingX(index)
-  const outer = index === 0 ? -1 : 1
   const i0 = cell(bx - BUILDING_W / 2)
   const i1 = cell(bx + BUILDING_W / 2 - 0.01)
   const k0 = cell(BUILDING_Z - BUILDING_D / 2)
   const k1 = cell(BUILDING_Z + BUILDING_D / 2 - 0.01)
-  const sideI = outer < 0 ? i0 : i1
-  const innerI = outer < 0 ? i1 : i0
-  const H = 7
   const carpet: BlockType = index === 0 ? 'carpetBlue' : 'carpetSage'
-
   for (let i = i0; i <= i1; i++) for (let k = k0; k <= k1; k++) w.set(i, -1, k, carpet)
-
-  // back wall: drywall to 2.5 units, glass clerestory, aluminium cap
-  for (let i = i0; i <= i1; i++)
-    for (let j = 0; j < H; j++) w.set(i, j, k0, j < 5 ? 'drywall' : j < H - 1 ? 'glass' : 'metal')
-  // outer side: low drywall, then full-height glass panes split by aluminium mullions
-  for (let k = k0; k <= k1; k++)
-    for (let j = 0; j < H; j++) {
-      const mullion = (k - k0) % 4 === 0
-      w.set(sideI, j, k, j < 2 ? 'drywall' : j === H - 1 || mullion ? 'metal' : 'glass')
-    }
-  // metal corner posts at the open front + a header beam over the inner post
-  w.fill(innerI, innerI, 0, H - 1, k1, k1, 'metal')
-  w.fill(sideI, sideI, 0, H - 1, k1, k1, 'metal')
-  // filing cabinet by the inner back corner, plant beside it
-  // (moving from the inner post toward the booth centre is the `outer` direction)
-  const cab = innerI + outer
-  w.fill(cab, cab + outer, 0, 2, k0 + 1, k0 + 1, 'metal')
-  w.set(cab + outer * 3, 0, k0 + 1, 'terracotta')
-  w.fill(cab + outer * 3, cab + outer * 3, 1, 2, k0 + 1, k0 + 1, 'leaves')
 }
 
 /** Render farm: a row of server racks against the back wall (LEDs, vapor and fans are live meshes). */

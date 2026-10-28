@@ -235,7 +235,7 @@ function Avatar({
     if (arrived) {
       if (station.kind === 'seat') {
         sit = true
-        facing = 0
+        facing = Math.PI // facing the cubicle desk and monitors
       } else if (lounge) {
         facing = lounge.facing
         if (lounge.pose === 'sit') {

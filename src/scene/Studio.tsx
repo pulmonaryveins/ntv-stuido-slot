@@ -9,10 +9,10 @@ import { slotAccent } from '../ui/SlotCard'
 import { useNow } from '../ui/useNow'
 import { useStudio } from '../store/studio'
 import { studioClient } from '../data'
-import { B, C, GEO, GLOW, PAL, mat } from './kit'
+import { B, C, GEO, GLOW, PAL } from './kit'
 import { useAnchor } from './anchors'
 import { PixelIcon, type IconName } from '../ui/PixelIcon'
-import { BUILDING_D, BUILDING_Z, buildingX, type DeskSpot } from './layout'
+import { CUBE_BACK, CUBE_FRONT, CUBE_W, buildingX, type DeskSpot } from './layout'
 
 const BOOTH_ACCENT = ['#5e7290', '#6f8a6f']
 
@@ -37,38 +37,59 @@ function useSignTexture(text: string, accent: string) {
   }, [text, accent])
 }
 
-/** Office booth extras on top of the voxel walls (world.ts): name plate, whiteboard, wall clock. */
+const PANEL_H = 1.35
+const NOTE_COLORS = ['#f7e26b', '#f59fb5', '#8fd3f0', '#b6e388']
+
+/**
+ * Cubicle pod for one Adobe account: two cubicles sharing a back panel and a middle panel,
+ * fabric partitions in the account colour with aluminium caps, open toward the camera, and the
+ * account name hung above. Desks/chairs are added per slot by <Desk>.
+ */
 export function Building({ index, label }: { index: number; label: string }) {
   const bx = buildingX(index)
-  const outer = index === 0 ? -1 : 1
   const accent = BOOTH_ACCENT[index % BOOTH_ACCENT.length]!
+  const fabric = index === 0 ? '#6f7f97' : '#7d927c'
   const sign = useSignTexture(label, accent)
-  const backZ = BUILDING_Z - BUILDING_D / 2
-  const wallFace = backZ + 0.52
-  const wallTop = 3.5
+  const depth = CUBE_FRONT - CUBE_BACK
+  const midZ = (CUBE_BACK + CUBE_FRONT) / 2
+
+  const Panel = ({ x, z, w, d }: { x: number; z: number; w: number; d: number }) => (
+    <group>
+      <B p={[x, PANEL_H / 2, z]} s={[w, PANEL_H, d]} c={fabric} cast />
+      <B p={[x, PANEL_H + 0.03, z]} s={[w + 0.04, 0.06, d + 0.04]} c={PAL.metal} />
+      <B p={[x, 0.04, z]} s={[w + 0.02, 0.08, d + 0.02]} c={PAL.metalDark} />
+    </group>
+  )
 
   return (
     <group>
-      {/* name plate standing on the wall cap */}
-      <mesh geometry={GEO.plane} position={[bx, wallTop + 0.55, backZ + 0.28]} scale={[3.4, 0.85, 1]}>
+      {/* back panel across both cubicles */}
+      <Panel x={bx} z={CUBE_BACK} w={CUBE_W * 2} d={0.1} />
+      {/* side panels: outer left, shared middle, outer right */}
+      {[-CUBE_W, 0, CUBE_W].map((dx) => (
+        <Panel key={dx} x={bx + dx} z={midZ} w={0.1} d={depth} />
+      ))}
+      {/* sticky notes and a calendar pinned to the fabric (inside faces) */}
+      {[-1, 1].map((side) => (
+        <group key={side} position={[bx + side * (CUBE_W / 2), 0, CUBE_BACK + 0.06]}>
+          {NOTE_COLORS.map((c, i) => (
+            <B key={c} p={[-1.25 + i * 0.22 + (side > 0 ? 1.7 : 0), 1.15 - (i % 2) * 0.18, 0]} s={[0.16, 0.16, 0.01]} c={c} />
+          ))}
+          <B p={[side > 0 ? -1.1 : 1.1, 1.05, 0]} s={[0.36, 0.42, 0.01]} c="#fbfbf8" />
+          <B p={[side > 0 ? -1.1 : 1.1, 1.22, 0.005]} s={[0.36, 0.08, 0.01]} c={accent} />
+        </group>
+      ))}
+      {/* plant on the middle panel's cap */}
+      <B p={[bx, PANEL_H + 0.18, CUBE_FRONT - 0.35]} s={[0.22, 0.24, 0.22]} c="#c4683f" />
+      <B p={[bx, PANEL_H + 0.4, CUBE_FRONT - 0.35]} s={[0.3, 0.22, 0.3]} c={PAL.leaf} />
+      {/* account sign hung above the pod */}
+      {[-1.5, 1.5].map((dx) => (
+        <B key={dx} p={[bx + dx, PANEL_H + 0.85, CUBE_BACK]} s={[0.04, 1.6, 0.04]} c={PAL.metal} />
+      ))}
+      <mesh geometry={GEO.plane} position={[bx, PANEL_H + 2.1, CUBE_BACK + 0.04]} scale={[3.4, 0.85, 1]}>
         <meshBasicMaterial map={sign} toneMapped={false} />
       </mesh>
-      <B p={[bx, wallTop + 0.55, backZ + 0.24]} s={[3.5, 0.95, 0.06]} c={PAL.metalDark} />
-      {/* whiteboard with marker scribbles */}
-      <B p={[bx, 1.75, wallFace]} s={[2.5, 1.1, 0.05]} c={PAL.metal} />
-      <B p={[bx, 1.75, wallFace + 0.03]} s={[2.36, 0.96, 0.02]} c="#fbfbf8" />
-      <B p={[bx - 0.6, 2.0, wallFace + 0.045]} s={[0.8, 0.05, 0.01]} c="#3a6fd8" />
-      <B p={[bx - 0.75, 1.82, wallFace + 0.045]} s={[0.5, 0.05, 0.01]} c="#3a6fd8" />
-      <B p={[bx + 0.55, 1.85, wallFace + 0.045]} s={[0.55, 0.4, 0.01]} c={accent} />
-      <B p={[bx - 0.2, 1.5, wallFace + 0.045]} s={[1.2, 0.05, 0.01]} c="#d84a3a" />
-      <B p={[bx, 1.24, wallFace + 0.06]} s={[2.2, 0.05, 0.1]} c={PAL.metalDark} />
-      {/* wall clock */}
-      <group position={[bx + outer * 2.9, 2.1, wallFace]}>
-        <B p={[0, 0, 0]} s={[0.5, 0.5, 0.05]} c={PAL.ink} />
-        <B p={[0, 0, 0.03]} s={[0.42, 0.42, 0.02]} c="#fbfbf8" />
-        <B p={[0, 0.07, 0.045]} s={[0.03, 0.15, 0.01]} c={PAL.ink} />
-        <B p={[0.06, 0, 0.045]} s={[0.12, 0.03, 0.01]} c={PAL.ink} />
-      </group>
+      <B p={[bx, PANEL_H + 2.1, CUBE_BACK]} s={[3.5, 0.95, 0.06]} c={PAL.metalDark} />
     </group>
   )
 }
@@ -102,42 +123,39 @@ export function Desk({ spot, slot }: { spot: DeskSpot; slot: Slot }) {
         document.body.style.cursor = ''
       }}
     >
-      <mesh ref={ring} geometry={GEO.ring} material={ringMat} position={[dx, 0.03, dz - 0.5]} rotation={[-Math.PI / 2, 0, 0]} scale={4.2} />
-      {/* office desk: white top, aluminium side frames, modesty panel */}
-      <B p={[dx, 0.8, dz]} s={[1.9, 0.08, 1.0]} c="#f1eee8" cast />
-      {[-0.88, 0.88].map((x) => (
-        <group key={x}>
-          <B p={[dx + x, 0.38, dz - 0.38]} s={[0.07, 0.76, 0.07]} c={PAL.metal} />
-          <B p={[dx + x, 0.38, dz + 0.38]} s={[0.07, 0.76, 0.07]} c={PAL.metal} />
-          <B p={[dx + x, 0.05, dz]} s={[0.08, 0.06, 0.95]} c={PAL.metal} />
+      <mesh ref={ring} geometry={GEO.ring} material={ringMat} position={[dx, 0.03, (dz + spot.chair[1]) / 2]} rotation={[-Math.PI / 2, 0, 0]} scale={4.6} />
+      {/* cubicle work surface fixed to the back panel, pedestal drawers underneath */}
+      <B p={[dx, 0.76, dz]} s={[CUBE_W - 0.2, 0.06, 0.9]} c="#f1eee8" cast />
+      <B p={[dx, 0.73, dz + 0.44]} s={[CUBE_W - 0.2, 0.04, 0.03]} c={PAL.metal} />
+      <B p={[dx + spot.side * 1.25, 0.36, dz]} s={[0.5, 0.72, 0.8]} c={PAL.metal} cast />
+      {[0.18, 0.4, 0.6].map((y) => (
+        <B key={y} p={[dx + spot.side * 1.25, y, dz + 0.41]} s={[0.4, 0.02, 0.01]} c={PAL.metalDark} />
+      ))}
+      {/* dual monitors facing the user (and the camera) */}
+      {[-0.42, 0.42].map((ox) => (
+        <group key={ox} position={[dx + ox, 0, dz - 0.15]} rotation={[0, -ox * 0.35, 0]}>
+          <B p={[0, 0.82, 0]} s={[0.24, 0.04, 0.18]} c={PAL.ink} />
+          <B p={[0, 0.95, -0.02]} s={[0.05, 0.25, 0.05]} c={PAL.ink} />
+          <B p={[0, 1.22, 0]} s={[0.76, 0.46, 0.05]} c={PAL.ink} cast />
+          <mesh geometry={GEO.box} material={occupied ? GLOW.screen : GLOW.screenOff} position={[0, 1.22, 0.03]} scale={[0.68, 0.38, 0.01]} />
         </group>
       ))}
-      <B p={[dx, 0.5, dz + 0.42]} s={[1.7, 0.5, 0.04]} c={PAL.metalDark} />
-      {/* papers, pen cup, little succulent */}
-      <B p={[dx + 0.3, 0.85, dz - 0.25]} s={[0.3, 0.02, 0.22]} c="#ffffff" r={0.2} />
-      <B p={[dx + 0.82, 0.92, dz + 0.3]} s={[0.1, 0.16, 0.1]} c={PAL.ink} />
-      <B p={[dx + 0.55, 0.88, dz + 0.32]} s={[0.12, 0.08, 0.12]} c="#c4683f" />
-      <B p={[dx + 0.55, 0.97, dz + 0.32]} s={[0.1, 0.1, 0.1]} c={PAL.leaf} />
-      {/* laptop facing the chair (back toward camera side is the lid) */}
-      <B p={[dx, 0.87, dz - 0.05]} s={[0.7, 0.04, 0.45]} c={PAL.metalDark} />
-      <mesh geometry={GEO.box} material={mat(PAL.metal)} position={[dx, 1.1, dz + 0.17]} rotation={[0.25, 0, 0]} scale={[0.7, 0.45, 0.04]} castShadow />
-      <mesh geometry={GEO.box} material={occupied ? GLOW.screen : GLOW.screenOff} position={[dx, 1.1, dz + 0.145]} rotation={[0.25, 0, 0]} scale={[0.62, 0.38, 0.02]} />
-      {/* mug */}
-      <C p={[dx + 0.65, 0.93, dz - 0.2]} rad={0.08} h={0.16} c={PAL.cream} />
-      {/* lamp */}
-      <C p={[dx - 0.72, 0.87, dz + 0.25]} rad={0.1} h={0.04} c={PAL.ink} />
-      <B p={[dx - 0.72, 1.1, dz + 0.25]} s={[0.04, 0.45, 0.04]} c={PAL.ink} />
-      <mesh geometry={GEO.cone} material={mat(PAL.amber)} position={[dx - 0.62, 1.35, dz + 0.2]} rotation={[0, 0, -0.9]} scale={[0.26, 0.2, 0.26]} />
-      <mesh geometry={GEO.ico} material={GLOW.lamp} position={[dx - 0.56, 1.29, dz + 0.17]} scale={0.08} />
-      {/* black office chair: five-star base, gas lift, seat, mesh back with headrest, arms */}
+      {/* keyboard, mouse, mug, lamp */}
+      <B p={[dx, 0.8, dz + 0.22]} s={[0.62, 0.03, 0.2]} c={PAL.ink} />
+      <B p={[dx + 0.48, 0.8, dz + 0.24]} s={[0.08, 0.03, 0.12]} c={PAL.ink} />
+      <C p={[dx - 0.75, 0.86, dz + 0.15]} rad={0.07} h={0.15} c={PAL.cream} />
+      <B p={[dx - spot.side * 1.4, 0.82, dz - 0.25]} s={[0.16, 0.06, 0.16]} c={PAL.ink} />
+      <B p={[dx - spot.side * 1.4, 1.05, dz - 0.25]} s={[0.04, 0.42, 0.04]} c={PAL.ink} />
+      <mesh geometry={GEO.box} material={GLOW.lamp} position={[dx - spot.side * 1.4, 1.26, dz - 0.15]} scale={[0.22, 0.08, 0.22]} />
+      {/* black swivel chair; the backrest is behind the user, toward the cubicle opening */}
       <group position={[spot.chair[0], 0, spot.chair[1]]}>
         {[0, 1, 2, 3, 4].map((i) => (
           <B key={i} p={[Math.sin((i / 5) * Math.PI * 2) * 0.17, 0.05, Math.cos((i / 5) * Math.PI * 2) * 0.17]} s={[0.07, 0.05, 0.34]} r={(i / 5) * Math.PI * 2} c={PAL.ink} />
         ))}
         <B p={[0, 0.32, 0]} s={[0.07, 0.5, 0.07]} c={PAL.metal} />
         <B p={[0, 0.6, 0]} s={[0.62, 0.12, 0.58]} c="#2b2d35" cast />
-        <B p={[0, 1.02, -0.29]} s={[0.56, 0.7, 0.08]} c="#2b2d35" cast />
-        <B p={[0, 1.42, -0.29]} s={[0.34, 0.16, 0.08]} c="#2b2d35" />
+        <B p={[0, 1.02, 0.29]} s={[0.56, 0.7, 0.08]} c="#2b2d35" cast />
+        <B p={[0, 1.42, 0.29]} s={[0.34, 0.16, 0.08]} c="#2b2d35" />
         {[-0.33, 0.33].map((x) => (
           <B key={x} p={[x, 0.82, 0]} s={[0.06, 0.06, 0.38]} c={PAL.ink} />
         ))}
@@ -156,7 +174,7 @@ export function DeskPlate({ spot, slot, snapshot, actorId }: { spot: DeskSpot; s
   const mine = !!actorId && (slot.user_id === actorId || slot.hold_user_id === actorId)
   const pulse = view.kind === 'rendering' || view.kind === 'reserved'
   // Left desk's plate extends left, right desk's extends right, so neighbours never overlap.
-  const anchor = useAnchor(`desk:${slot.id}`, spot.desk[0], spot.side < 0 ? 2.4 : 3.4, spot.desk[1], spot.side < 0 ? -0.85 : -0.15)
+  const anchor = useAnchor(`desk:${slot.id}`, spot.desk[0], spot.side < 0 ? 1.75 : 2.3, spot.desk[1], spot.side < 0 ? -0.85 : -0.15)
 
   let icon: IconName = 'block'
   let line = 'Free'

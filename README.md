@@ -116,9 +116,9 @@ users, rate limit, realtime join. Real concurrency is not covered there (single 
 - **3D office:** a voxel office (cutaway room with brick/plaster walls, loft windows that show
   day or night, a door) built from 0.5-unit blocks with procedurally drawn 16x16 textures
   (`src/scene/voxel.tsx`, `src/scene/world.ts`), one instanced mesh per block type.
-  The two account booths are office rooms inside it (carpet tiles, drywall and glass
-  partitions in aluminium frames, whiteboard, clock, filing cabinet, white desks, black swivel
-  chairs); the render farm is a server-rack corner whose LEDs,
+  Each account is a cubicle pod on its own carpet: two cubicles with fabric partitions and
+  aluminium caps, a work surface on the back panel with dual monitors (they light up when the
+  seat is in use), drawer pedestal, sticky notes, and the user seated facing the screens; the render farm is a server-rack corner whose LEDs,
   heat vapor and wall fans scale with active renders.
 - **Lounge for the waiting list:** queued users don't stand in line. By queue position they
   watch TV on the sofa (#1), play arcade (#2), chill in a bean bag (#3), play ping-pong (#4),
