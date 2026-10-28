@@ -14,7 +14,6 @@ export function App() {
   const page = useStudio((s) => s.page)
   const theme = useStudio((s) => s.theme)
   const loadError = useStudio((s) => s.loadError)
-  const sceneryAvailable = useStudio((s) => s.sceneryAvailable)
   // Mount the 3D stage on first use, then keep it (paused) so switching back is instant.
   const [stageMounted, setStageMounted] = useState(view === '3d')
 
@@ -74,14 +73,6 @@ export function App() {
         )}
         <footer className="flex flex-wrap items-center gap-x-3 border-t border-line bg-surface px-4 py-1.5 text-[11px] text-muted">
           <span>Studio Slots · never store Adobe credentials here</span>
-          {sceneryAvailable && (
-            <span className="ml-auto">
-              Background scenery model by LowPolyBoy, licensed{' '}
-              <a className="underline" href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">
-                CC BY 4.0
-              </a>
-            </span>
-          )}
         </footer>
       </div>
       <ClaimDialog />

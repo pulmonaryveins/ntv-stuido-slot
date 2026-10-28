@@ -45,7 +45,6 @@ interface StudioState {
   claimFor: number | null
   renderEtaFor: number | null
   webgl: boolean
-  sceneryAvailable: boolean
 
   setView(view: View): void
   setPage(page: Page): void
@@ -111,7 +110,6 @@ export const useStudio = create<StudioState>((set, get) => ({
   claimFor: null,
   renderEtaFor: null,
   webgl,
-  sceneryAvailable: false,
 
   setView: (view) => {
     if (view === '3d' && !get().webgl) return
@@ -242,11 +240,4 @@ export function startStudio() {
     .then(onSnapshot)
     .catch((e) => useStudio.setState({ loadError: String(e) }))
   setInterval(checkSessionEnding, 1000)
-
-  fetch('/models/town.glb', { method: 'HEAD' })
-    .then((r) => {
-      const type = r.headers.get('content-type') ?? ''
-      useStudio.setState({ sceneryAvailable: r.ok && !type.includes('text/html') })
-    })
-    .catch(() => {})
 }

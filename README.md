@@ -77,14 +77,3 @@ update public.profiles set role = 'admin' where id = (select id from auth.users 
 - `activity_log.user_id` is the actor (null = system); `meta.target_user_id` is who to notify.
 - RPC errors use stable codes (`slot_taken`, `slot_held`, `already_seated`, …) listed at the
   top of the RPC migration.
-
-## Optional scenery model
-
-`public/models/town.glb` is optional background scenery (LowPolyBoy, CC BY 4.0, NoAI-tagged).
-It is gitignored. To produce it from the source file:
-
-```sh
-npm run glb:compress -- path/to/source.glb
-```
-
-The app runs without it and shows a credit line in the footer when it is present.

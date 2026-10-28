@@ -1,6 +1,6 @@
-import { Component, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, OrthographicCamera, useGLTF } from '@react-three/drei'
+import { OrbitControls, OrthographicCamera } from '@react-three/drei'
 import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useStudio, type TimeMode } from '../store/studio'
@@ -61,7 +61,6 @@ export default function Stage({ active }: { active: boolean }) {
   const focusSlot = useStudio((s) => s.focusSlot)
   const timeMode = useStudio((s) => s.timeMode)
   const sceneEvents = useStudio((s) => s.sceneEvents)
-  const sceneryAvailable = useStudio((s) => s.sceneryAvailable)
   const reducedMotion = usePrefersReducedMotion()
   const visible = usePageVisible()
   const now = useNow(1000)
@@ -126,13 +125,6 @@ export default function Stage({ active }: { active: boolean }) {
           </>
         )}
         <Dog reducedMotion={reducedMotion} />
-        {sceneryAvailable && (
-          <SceneryBoundary>
-            <Suspense fallback={null}>
-              <TownScenery />
-            </Suspense>
-          </SceneryBoundary>
-        )}
       </Canvas>
 
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
@@ -267,40 +259,4 @@ function DayNight({ night }: { night: number }) {
       />
     </>
   )
-}
-
-/** Optional background scenery. The file is only loaded at runtime, never inspected. */
-function TownScenery() {
-  const { scene } = useGLTF('/models/town.glb')
-  const object = useMemo(() => {
-    const root = scene.clone(true)
-    const box = new THREE.Box3().setFromObject(root)
-    const size = box.getSize(new THREE.Vector3())
-    const scale = 26 / Math.max(size.x, size.z, 0.001)
-    root.scale.setScalar(scale)
-    const scaled = new THREE.Box3().setFromObject(root)
-    const center = scaled.getCenter(new THREE.Vector3())
-    root.position.set(-center.x, -scaled.max.y, -center.z)
-    return root
-  }, [scene])
-  // Far behind-left of the island (away from the camera), lowered so it reads as distant land.
-  const dir = AZIMUTH + 0.85
-  return (
-    <group position={[-Math.sin(dir) * 40, -12, -Math.cos(dir) * 40]}>
-      <primitive object={object} />
-    </group>
-  )
-}
-
-class SceneryBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
-  state = { failed: false }
-  static getDerivedStateFromError() {
-    return { failed: true }
-  }
-  componentDidCatch(error: unknown) {
-    console.warn('[studio] optional scenery failed to load', error)
-  }
-  render() {
-    return this.state.failed ? null : this.props.children
-  }
 }
