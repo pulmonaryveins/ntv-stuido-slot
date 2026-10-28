@@ -1,6 +1,6 @@
 import * as Select from '@radix-ui/react-select'
 import { mockClient } from '../data'
-import { supabaseConfigured } from '../lib/supabase'
+import { backendMode } from '../lib/backend'
 import { useAuth } from '../store/auth'
 import { useStudio, type Speed, type TimeMode, type View } from '../store/studio'
 import { Button, Segmented } from './controls'
@@ -54,7 +54,7 @@ export function TopBar() {
         {s.theme === 'dark' ? '☀︎' : '☾'}
       </Button>
 
-      {supabaseConfigured && me && <AccountMenu name={me.name} color={me.avatar_color} />}
+      {backendMode === 'bff' && me && <AccountMenu name={me.name} color={me.avatar_color} />}
 
       {isAdmin && (
         <Button

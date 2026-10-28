@@ -16,7 +16,7 @@ npm run dev        # http://localhost:5173
 npm test           # Vitest: helpers + mock client rules
 ```
 
-With no `VITE_SUPABASE_URL` the app uses an in-memory mock client that follows the same
+With no `SUPABASE_URL` the app uses an in-memory mock client that follows the same
 rules as the SQL RPCs. The top bar shows a dashed **Dev** group (mock only):
 
 - **Live demo**: simulated teammates claim, extend, break, render, queue and knock.
@@ -35,7 +35,8 @@ rules as the SQL RPCs. The top bar shows a dashed **Dev** group (mock only):
 3. Apply migrations: `npm run db:push`
    (dev projects only, with sample users: `npm run db:seed`)
 4. Generate types: `npm run db:types`
-5. `cp .env.example .env.local` and fill in the values, then `npm run dev`.
+5. `cp .env.example .env` and fill in `SUPABASE_URL`, `SUPABASE_ANON_KEY` and `SESSION_SECRET`,
+   then `npm run dev` (the BFF runs inside the dev server under `/api`).
 
 ### Registration and sign-in
 
@@ -46,8 +47,8 @@ least 8 characters; "Forgot password?" sends a reset link. In **Dashboard → Au
   off for the simplest flow (users are signed in right after registering), or leave it on to
   require a confirmation click first.
 - **URL Configuration**: set *Site URL* to your app URL (`http://localhost:5173` locally, your
-  Vercel URL in production) and add the same to *Redirect URLs* (used by confirmation and reset
-  emails).
+  Vercel URL in production) and add `http://localhost:5173/**` and `https://YOUR-APP.vercel.app/**`
+  to *Redirect URLs*. Email links return to `/api/auth/callback` on the BFF.
 
 #### Branded confirmation email
 
@@ -89,8 +90,8 @@ Enforced in the database, so it holds even if someone calls the API directly:
   (policy on `realtime.messages`). Table changes are still filtered by RLS.
 - **Browser.** `vercel.json` sets CSP, frame-ancestors/X-Frame-Options (no clickjacking),
   nosniff, referrer and permissions policies, HSTS. `npm run preview` serves the same headers.
-- **Secrets.** Only the public anon key is in the client. Never put the `service_role` key or
-  the database password in `.env`/Vercel `VITE_*` vars. No Adobe credentials anywhere.
+- **Secrets.** Nothing Supabase-related is in the client; see Architecture. Never put the
+  `service_role` key or the database password anywhere in the app. No Adobe credentials anywhere.
 
 `npm test` runs the SQL security tests (`supabase/tests/rpc.test.ts`) against every migration
 in an in-process Postgres: direct writes refused, other users' slots, admin-only RPCs, pending
@@ -101,17 +102,47 @@ users, rate limit, realtime join. Real concurrency is not covered there (single 
 - **Authentication → Sign In / Providers → Email:** minimum password length **8**.
 - **Authentication → Rate Limits:** keep defaults or lower sign-ups per hour.
 - **Realtime → Settings:** turn off **public channel access** (allow private channels only).
+- **API settings:** the browser no longer calls Supabase, so only your BFF uses the anon key.
 - **Optional:** Authentication → Attack Protection → enable **CAPTCHA** (Turnstile/hCaptcha)
   for sign-up; needs a site key in the app (not wired yet).
 - Rotate the **database password** if it was ever pasted anywhere public.
 
 ## Environment variables
 
+All server-only: read by the BFF, never bundled into the browser.
+
 | Name | Where | Notes |
 | --- | --- | --- |
-| `VITE_SUPABASE_URL` | `.env.local`, Vercel | Project URL |
-| `VITE_SUPABASE_ANON_KEY` | `.env.local`, Vercel | Public anon key; RLS protects data |
-| `DISCORD_WEBHOOK_URL` | Supabase secrets only | `npx supabase secrets set DISCORD_WEBHOOK_URL=...`. Never put it in a `VITE_` var. |
+| `SUPABASE_URL` | `.env`, Vercel | Project URL |
+| `SUPABASE_ANON_KEY` | `.env`, Vercel | Anon key (RLS still applies to every query) |
+| `SESSION_SECRET` | `.env`, Vercel | 32+ random chars, encrypts the session cookie. Required in production |
+| `DISCORD_WEBHOOK_URL` | Supabase secrets | `npx supabase secrets set ...` |
+
+Never use `VITE_` names for these: Vite would put them in the browser bundle.
+
+## Architecture: BFF (backend for frontend)
+
+```
+browser ──/api/* (same origin, httpOnly cookie)──▶ BFF (server/, Vercel function) ──▶ Supabase
+        ◀──────────── SSE /api/stream ◀───────────  (Realtime, private channel)
+```
+
+- The browser only talks to `/api/*`. No Supabase URL, key, token or SDK is in the bundle
+  (CSP `connect-src 'self'`).
+- **Session:** Supabase access/refresh tokens live in an AES-GCM encrypted, httpOnly,
+  SameSite=Lax cookie scoped to `/api`. JavaScript cannot read it; the BFF refreshes it.
+- **Email links** (confirm, reset) use PKCE: the link returns a one-time code to
+  `/api/auth/callback`, exchanged server-side. Open them in the same browser.
+- **Board actions:** `POST /api/rpc/:name`, only allowlisted RPCs with exact argument shapes.
+  Queries run with the user's JWT, so RLS and the RPC checks still apply.
+- **Live updates:** `GET /api/stream` (Server-Sent Events). The BFF listens to Supabase Realtime
+  and sends a bare `change` event; the browser refetches `/api/board`. Each stream lives about
+  50 s (function limit) and reconnects automatically.
+- **CSRF:** every POST needs the `x-studio-csrf` header and a same-origin `Origin`.
+- **Login throttling:** Supabase sees the BFF's IP for every user, so the BFF limits sign-in,
+  sign-up and email requests per client IP (in memory, per instance, best effort).
+- Locally, `npm run dev` mounts the same handlers (`server/vitePlugin.ts`); on Vercel,
+  `vercel.json` rewrites `/api/*` to `api/index.ts`.
 
 ## Sample users (seed.sql, DEV ONLY)
 

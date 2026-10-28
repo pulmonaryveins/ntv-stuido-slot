@@ -1,12 +1,16 @@
 import { create } from 'zustand'
-import type { AuthError } from '@supabase/supabase-js'
-import { supabase, supabaseConfigured } from '../lib/supabase'
-import type { WorkRole } from '../data'
+import { ApiError, api, backendMode } from '../lib/backend'
+import { bffClient, type WorkRole } from '../data'
 import { useStudio } from './studio'
 
 export type AuthStatus = 'loading' | 'signedOut' | 'signedIn' | 'recovery'
 
 export const MIN_PASSWORD = 8
+
+interface MeResponse {
+  user: { id: string; email: string | null }
+  profile: { id: string; name: string; role: string; active: boolean } | null
+}
 
 interface AuthState {
   status: AuthStatus
@@ -21,6 +25,8 @@ interface AuthState {
   /** Own profile's `active` flag: null = not checked yet, false = waiting for approval / deactivated. */
   profileActive: boolean | null
 
+  /** Ask the BFF who is signed in (session lives in an httpOnly cookie). */
+  refreshMe(): Promise<void>
   checkProfile(): Promise<void>
   signIn(email: string, password: string): Promise<void>
   signUp(input: { name: string; workRole: WorkRole; email: string; password: string }): Promise<void>
@@ -32,18 +38,11 @@ interface AuthState {
   clearMessages(): void
 }
 
-function friendly(error: AuthError): string {
-  const m = error.message
-  if (/invalid login credentials/i.test(m)) return 'Wrong email or password.'
-  if (/already registered|already been registered/i.test(m)) return 'That email already has an account. Sign in instead.'
-  if (/email not confirmed/i.test(m)) return 'Confirm your email first: check your inbox for the link.'
-  if (/rate limit|too many/i.test(m)) return 'Too many attempts. Wait a minute and try again.'
-  if (/password/i.test(m)) return m
-  return m || 'Something went wrong. Try again.'
-}
+const message = (e: unknown) =>
+  e instanceof ApiError ? e.message : 'Something went wrong. Try again.'
 
 export const useAuth = create<AuthState>((set, get) => ({
-  status: supabaseConfigured ? 'loading' : 'signedOut',
+  status: backendMode === 'bff' ? 'loading' : 'signedOut',
   userId: null,
   email: null,
   error: null,
@@ -52,12 +51,29 @@ export const useAuth = create<AuthState>((set, get) => ({
   pendingEmail: null,
   profileActive: null,
 
+  refreshMe: async () => {
+    try {
+      const me = await api<MeResponse>('auth/me')
+      bffClient?.setUserId(me.user.id)
+      set((s) => ({
+        status: s.status === 'recovery' ? 'recovery' : 'signedIn',
+        userId: me.user.id,
+        email: me.user.email,
+        profileActive: !!me.profile?.active,
+        pendingEmail: null,
+      }))
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) {
+        bffClient?.setUserId(null)
+        set({ status: 'signedOut', userId: null, email: null, profileActive: null })
+      } else if (get().status === 'loading') {
+        set({ status: 'signedOut', error: message(e) })
+      }
+    }
+  },
+
   checkProfile: async () => {
-    const userId = get().userId
-    if (!userId) return
-    const { data, error } = await supabase.from('profiles').select('active').eq('id', userId).maybeSingle()
-    if (error) return // network hiccup: keep the last known state
-    set({ profileActive: !!data?.active })
+    if (get().userId) await get().refreshMe()
   },
 
   clearMessages: () => set({ error: null, notice: null }),
@@ -68,135 +84,112 @@ export const useAuth = create<AuthState>((set, get) => ({
     const email = get().pendingEmail
     if (!email) return false
     set({ error: null })
-    const { error } = await supabase.auth.resend({
-      type: 'signup',
-      email,
-      options: { emailRedirectTo: window.location.origin },
-    })
-    if (error) set({ error: friendly(error) })
-    return !error
+    try {
+      await api('auth/resend', { body: { email } })
+      return true
+    } catch (e) {
+      set({ error: message(e) })
+      return false
+    }
   },
 
   signIn: async (email, password) => {
     set({ busy: true, error: null, notice: null })
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
-    set({ busy: false, error: error ? friendly(error) : null })
+    try {
+      await api('auth/login', { body: { email, password } })
+      await get().refreshMe()
+      set({ busy: false })
+    } catch (e) {
+      set({ busy: false, error: message(e) })
+    }
   },
 
   signUp: async ({ name, workRole, email, password }) => {
     set({ busy: true, error: null, notice: null })
-    const { data, error } = await supabase.auth.signUp({
-      email: email.trim(),
-      password,
-      options: {
-        data: { name: name.trim(), work_role: workRole },
-        emailRedirectTo: window.location.origin,
-      },
-    })
-    if (error) {
-      set({ busy: false, error: friendly(error) })
-      return
+    try {
+      const res = await api<{ signedIn?: boolean; pending?: boolean }>('auth/register', {
+        body: { name, workRole, email, password },
+      })
+      if (res.signedIn) await get().refreshMe()
+      set({ busy: false, pendingEmail: res.pending ? email.trim() : null })
+    } catch (e) {
+      set({ busy: false, error: message(e) })
     }
-    // Email confirmation on: no session yet. Confirmation off: onAuthStateChange signs in.
-    // Supabase returns an empty identities list for an already-registered email.
-    if (data.user && data.user.identities?.length === 0) {
-      set({ busy: false, error: 'That email already has an account. Sign in instead.' })
-      return
-    }
-    // Email confirmation on: no session yet, show the "check your email" screen.
-    set({ busy: false, pendingEmail: data.session ? null : email.trim() })
   },
 
   requestReset: async (email) => {
     set({ busy: true, error: null, notice: null })
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo: window.location.origin,
-    })
-    set({
-      busy: false,
-      error: error ? friendly(error) : null,
-      notice: error ? null : 'If that email has an account, a reset link is on its way.',
-    })
+    try {
+      await api('auth/reset', { body: { email } })
+      set({ busy: false, notice: 'If that email has an account, a reset link is on its way.' })
+    } catch (e) {
+      set({ busy: false, error: message(e) })
+    }
   },
 
   updatePassword: async (password) => {
     set({ busy: true, error: null, notice: null })
-    const { error } = await supabase.auth.updateUser({ password })
-    if (error) {
-      set({ busy: false, error: friendly(error) })
-      return
+    try {
+      await api('auth/password', { body: { password } })
+      set({ busy: false, status: 'signedIn', notice: 'Password updated.' })
+      await get().refreshMe()
+    } catch (e) {
+      set({ busy: false, error: message(e) })
     }
-    set({ busy: false, status: get().userId ? 'signedIn' : 'signedOut', notice: 'Password updated.' })
   },
 
   signOut: async () => {
-    await supabase.auth.signOut()
-    // Reload so the board store, realtime channels and timers start clean for the next user.
+    await api('auth/logout', { body: {} }).catch(() => {})
+    // Reload so the board store, live stream and timers start clean for the next user.
     window.location.reload()
   },
 }))
 
-/** What the URL says about an email link the user just followed (read before supabase-js strips it). */
-function readLinkResult(): { confirmed: boolean; error: string | null } {
-  if (typeof window === 'undefined') return { confirmed: false, error: null }
-  const params = new URLSearchParams(`${window.location.hash.replace(/^#/, '')}&${window.location.search.replace(/^\?/, '')}`)
-  const type = params.get('type')
-  const errorCode = params.get('error_code')
-  const error = params.get('error_description')
-  if (errorCode || error) {
-    window.history.replaceState(null, '', window.location.pathname)
-    return {
-      confirmed: false,
-      error: errorCode === 'otp_expired'
-        ? 'That email link expired or was already used. Sign in, or register again to get a new one.'
-        : (error ?? 'That email link did not work.').replace(/\+/g, ' '),
-    }
+const LINK_ERRORS: Record<string, string> = {
+  link_expired: 'That email link expired or was already used. Sign in, or register again to get a new one.',
+  link_other_device: 'Open the email link in the same browser you registered or requested the reset from.',
+  link_invalid: 'That email link did not work. Try again.',
+}
+
+/** Flags the BFF's /api/auth/callback put in the URL after an email link. Removed once read. */
+function readLinkResult(): { confirmed: boolean; recovery: boolean; error: string | null } {
+  const params = new URLSearchParams(window.location.search)
+  const result = {
+    confirmed: params.get('confirmed') === '1',
+    recovery: params.get('recovery') === '1',
+    error: params.get('auth_error') ? (LINK_ERRORS[params.get('auth_error')!] ?? LINK_ERRORS.link_invalid!) : null,
   }
-  return { confirmed: type === 'signup' || type === 'email', error: null }
+  if (result.confirmed || result.recovery || result.error) window.history.replaceState(null, '', window.location.pathname)
+  return result
 }
 
 let initialised = false
 let approvalPoll: ReturnType<typeof setInterval> | null = null
 
-/** Wire Supabase auth events into the store. Call once on app start. */
+/** Load the session from the BFF and handle email-link results. Call once on app start. */
 export function initAuth() {
-  if (initialised || !supabaseConfigured) return
+  if (initialised || backendMode !== 'bff') return
   initialised = true
   const link = readLinkResult()
   if (link.error) useAuth.setState({ error: link.error })
-  let welcomePending = link.confirmed
-  const apply = (event: string, session: { user: { id: string; email?: string } } | null) => {
-    if (event === 'PASSWORD_RECOVERY') {
-      useAuth.setState({ status: 'recovery', userId: session?.user.id ?? null, email: session?.user.email ?? null })
-      return
-    }
-    if (session && welcomePending) {
-      welcomePending = false
-      useStudio.getState().pushToast({ kind: 'info', title: 'Email confirmed', body: 'Welcome to Studio Slots!' })
-    }
-    useAuth.setState((s) => ({
-      pendingEmail: session ? null : s.pendingEmail,
-      status: session ? (s.status === 'recovery' ? 'recovery' : 'signedIn') : 'signedOut',
-      userId: session?.user.id ?? null,
-      email: session?.user.email ?? null,
-      error: session ? null : s.error,
-    }))
-  }
-  supabase.auth.onAuthStateChange((event, session) => apply(event, session))
+  if (link.recovery) useAuth.setState({ status: 'recovery' })
 
-  // Check approval on sign-in; while waiting, re-check so approval lets the user in without a reload.
-  useAuth.subscribe((s, prev) => {
-    if (s.status === 'signedIn' && (prev.status !== 'signedIn' || s.userId !== prev.userId)) {
-      void useAuth.getState().checkProfile()
-    }
+  void useAuth
+    .getState()
+    .refreshMe()
+    .then(() => {
+      if (link.confirmed && useAuth.getState().status === 'signedIn') {
+        useStudio.getState().pushToast({ kind: 'info', title: 'Email confirmed', body: 'Welcome to Studio Slots!' })
+      }
+    })
+
+  // While waiting for approval, re-check so approval lets the user in without a reload.
+  useAuth.subscribe((s) => {
     const waiting = s.status === 'signedIn' && s.profileActive === false
     if (waiting && !approvalPoll) approvalPoll = setInterval(() => void useAuth.getState().checkProfile(), 10_000)
     if (!waiting && approvalPoll) {
       clearInterval(approvalPoll)
       approvalPoll = null
     }
-  })
-  void supabase.auth.getSession().then(({ data }) => {
-    if (useAuth.getState().status === 'loading') apply('INITIAL_SESSION', data.session)
   })
 }

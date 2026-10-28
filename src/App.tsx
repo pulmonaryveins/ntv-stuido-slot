@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import * as Tooltip from '@radix-ui/react-tooltip'
 import { startStudio, useStudio } from './store/studio'
 import { initAuth, useAuth } from './store/auth'
-import { supabaseConfigured } from './lib/supabase'
+import { backendMode } from './lib/backend'
 import { AuthScreen, InactiveScreen, LoadingScreen, NewPasswordScreen } from './ui/AuthScreen'
 import { TopBar } from './ui/TopBar'
 import { Panel } from './ui/Panel'
@@ -23,7 +23,7 @@ export function App() {
     document.documentElement.dataset.theme = theme
   }, [theme])
 
-  if (!supabaseConfigured) return <Board />
+  if (backendMode !== 'bff') return <Board />
   if (status === 'signedIn') {
     if (profileActive === null) return <LoadingScreen />
     return profileActive ? <Board /> : <InactiveScreen />
@@ -44,7 +44,7 @@ function Board() {
   const snapshot = useStudio((s) => s.snapshot)
 
   useEffect(() => {
-    if (supabaseConfigured) useStudio.setState({ actorId: userId })
+    if (backendMode === 'bff') useStudio.setState({ actorId: userId })
     startStudio()
   }, [userId])
   useEffect(() => {
@@ -56,7 +56,7 @@ function Board() {
   // Deactivated mid-session: RLS starts hiding the board. Re-check so the gate switches screens.
   const meInactive = !!snapshot && snapshot.profiles.find((p) => p.id === userId)?.active === false
   useEffect(() => {
-    if (supabaseConfigured && (loadError || meInactive)) void useAuth.getState().checkProfile()
+    if (backendMode === 'bff' && (loadError || meInactive)) void useAuth.getState().checkProfile()
   }, [loadError, meInactive])
 
   return (
