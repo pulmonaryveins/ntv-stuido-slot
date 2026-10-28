@@ -7,7 +7,7 @@ import { useNow } from '../ui/useNow'
 import { GEO, PAL, hashString, mat, rand } from './kit'
 import { setAnchorPos, useAnchor } from './anchors'
 import { assignCharacters, instantiate, rigLimbs, type Rig } from './Characters'
-import { EXIT, HUB, cartSpot, loungeSpot, type DeskSpot, type XZ } from './layout'
+import { EXIT, HUB, KITCHEN_ROUTE, cartSpot, loungeSpot, type DeskSpot, type XZ } from './layout'
 
 type Station =
   | { kind: 'seat'; slotId: number }
@@ -42,7 +42,7 @@ function routeFor(s: Station, spots: Map<number, DeskSpot>): XZ[] {
       return spot ? [HUB, spot.route[1]!, spot.knock] : [HUB]
     }
     case 'cart':
-      return [HUB, cartSpot(s.index)]
+      return [...KITCHEN_ROUTE, cartSpot(s.index)]
     case 'queue':
       return [HUB, loungeSpot(s.index).pos]
     case 'gone':
@@ -250,10 +250,7 @@ function Avatar({
         }
         if (lounge.activity === 'pingpong' && !reducedMotion) sway = Math.sin(t * 2.6) * 0.35
       } else if (station.kind === 'knock') facing = Math.PI
-      else if (station.kind === 'cart') {
-        const c = cartSpot(station.index)
-        facing = Math.atan2(5.2 - c[0], 6.2 - c[1])
-      }
+      else if (station.kind === 'cart') facing = Math.PI // facing the kitchen counter
     }
     // smooth turn
     const diff = Math.atan2(Math.sin(facing - g.rotation.y), Math.cos(facing - g.rotation.y))
@@ -481,8 +478,9 @@ export function Dog({ reducedMotion }: { reducedMotion: boolean }) {
       s.wait -= dt
       if (s.wait <= 0) {
         s.seed++
-        s.tx = -3.5 + rand(s.seed) * 9
-        s.tz = 5 + rand(s.seed + 50) * 5
+        // wanders the open walkway in front of the cubicles
+        s.tx = -5 + rand(s.seed) * 10
+        s.tz = 1 + rand(s.seed + 50) * 3
         s.wait = 1 + rand(s.seed + 7) * 3
       }
     } else if (!reducedMotion) {

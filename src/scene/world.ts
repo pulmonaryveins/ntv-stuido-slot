@@ -2,21 +2,14 @@ import { rand } from './kit'
 import { BUILDING_D, BUILDING_W, BUILDING_Z, DOOR_Z, RACKS, ROOM_BACK, ROOM_FRONT, ROOM_X, buildingX } from './layout'
 import { VoxelWorld, cell, type BlockType } from './voxel'
 
-/** Potted plants (world x, z). */
-export const PLANTS: [number, number][] = [
-  [-14.2, -11.8], [14.2, -11.8], [-14.2, 12.8], [14.2, 12.8], [-3.6, -11.6], [3.6, -11.6],
-  [13.8, 4.2], [-14.2, 1.2], [-1.2, 1.4], [1.2, 1.4], [8.6, 12.6],
-]
-
 const WALL_H = 11 // blocks (5.5 units)
 
-/** Static blocky office: floor slab, back + left walls with windows and a door, studios, server racks, plants. */
+/** Static blocky office: floor slab, back + left walls with windows and a door, cubicle carpets, server racks. */
 export function buildWorld(buildingCount: number): VoxelWorld {
   const w = new VoxelWorld()
   room(w)
   for (let b = 0; b < Math.min(buildingCount, 2); b++) studio(w, b)
   serverRacks(w)
-  PLANTS.forEach(([x, z], n) => plant(w, cell(x), cell(z), n))
   return w
 }
 
@@ -78,17 +71,4 @@ function serverRacks(w: VoxelWorld) {
   w.fill(i0, i1, 6, 6, k0, k1, 'concrete')
   // cable tray up the wall
   w.fill(i0, i1, 9, 9, k0 - 0, k0, 'concrete')
-}
-
-function plant(w: VoxelWorld, i: number, k: number, seed: number) {
-  w.set(i, 0, k, 'terracotta')
-  const tall = seed % 3 !== 1
-  w.set(i, 1, k, 'leaves')
-  if (tall) {
-    w.set(i, 2, k, 'leaves')
-    for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) if (rand(seed * 5 + a * 3 + b) < 0.6) w.set(i + a, 2, k + b, 'leaves')
-    w.set(i, 3, k, 'leaves')
-  } else {
-    for (const [a, b] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) if (rand(seed * 9 + a + b * 2) < 0.5) w.set(i + a, 1, k + b, 'leaves')
-  }
 }

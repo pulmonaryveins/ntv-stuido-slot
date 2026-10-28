@@ -120,6 +120,12 @@ users, rate limit, realtime join. Real concurrency is not covered there (single 
   aluminium caps, a work surface on the back panel with dual monitors (they light up when the
   seat is in use), drawer pedestal, sticky notes, and the user seated facing the screens; the render farm is a server-rack corner whose LEDs,
   heat vapor and wall fans scale with active renders.
+- **Zones:** kitchen (back-left, where breaks happen), meeting corner with whiteboard
+  (back-right), printer by the racks, TV lounge (front-left), game corner with arcades and
+  ping-pong (front-right), collaboration table (front centre), potted plants framing each zone.
+- **Outside:** the office sits on a street block: pavement, a road with parked cars and one
+  driving past, street lamps, trees and a blocky skyline whose windows light up at night,
+  fading into the sky with distance fog.
 - **Lounge for the waiting list:** queued users don't stand in line. By queue position they
   watch TV on the sofa (#1), play arcade (#2), chill in a bean bag (#3), play ping-pong (#4),
   and so on, with a "#n waiting" tag (it pulses "seat ready" when their reservation starts).

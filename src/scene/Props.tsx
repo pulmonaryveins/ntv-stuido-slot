@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { B, C, GEO, GLOW, PAL, mat, rand } from './kit'
-import { ARCADE_X, ARCADE_Z, BEANBAGS, CART, PINGPONG, ROOM_BACK, ROOM_X, SOFA_X, TV_POS } from './layout'
+import { ARCADE_X, ARCADE_Z, BEANBAGS, COLLAB, KITCHEN, MEETING, PINGPONG, RACKS, ROOM_BACK, ROOM_X, SOFA_X, TV_POS } from './layout'
 
 const LEFT_WALL = -ROOM_X
 
@@ -63,7 +63,7 @@ function WallTV() {
 
 function Sofa() {
   return (
-    <group position={[SOFA_X - 0.25, 0, 6.6]}>
+    <group position={[SOFA_X - 0.25, 0, TV_POS[1]]}>
       <B p={[0, 0.25, 0]} s={[1.0, 0.5, 3.4]} c={PAL.teal} cast />
       <B p={[0.42, 0.75, 0]} s={[0.25, 0.75, 3.4]} c={PAL.tealDark} cast />
       <B p={[0, 0.5, -1.82]} s={[1.0, 0.45, 0.28]} c={PAL.tealDark} />
@@ -152,25 +152,6 @@ function BeanBag({ p, c }: { p: [number, number]; c: string }) {
   )
 }
 
-export function CoffeeCart() {
-  return (
-    <group position={[CART[0], 0, CART[1]]} rotation={[0, -0.5, 0]}>
-      <B p={[0, 0.7, 0]} s={[1.8, 0.9, 1]} c={PAL.teal} cast />
-      <B p={[0, 1.2, 0]} s={[1.9, 0.1, 1.1]} c={PAL.woodDark} />
-      <C p={[-0.6, 0.25, 0.55]} rad={0.25} h={0.08} c={PAL.ink} rotation={[Math.PI / 2, 0, 0]} />
-      <C p={[0.6, 0.25, 0.55]} rad={0.25} h={0.08} c={PAL.ink} rotation={[Math.PI / 2, 0, 0]} />
-      <C p={[-0.5, 1.45, 0]} rad={0.18} h={0.4} c={PAL.metal} />
-      <C p={[0.1, 1.35, 0.2]} rad={0.08} h={0.2} c={PAL.cream} />
-      <C p={[0.35, 1.35, 0.2]} rad={0.08} h={0.2} c={PAL.amber} />
-      <C p={[0, 1.6, -0.45]} rad={0.04} h={1.6} c={PAL.woodDark} />
-      {[0, 1, 2, 3].map((i) => (
-        <B key={i} p={[-0.75 + i * 0.5, 2.45, 0]} s={[0.5, 0.08, 1.4]} c={i % 2 ? PAL.cream : PAL.brick} r={0} cast />
-      ))}
-      <mesh geometry={GEO.ico} material={GLOW.bulb} position={[0, 2.25, 0.3]} scale={0.16} />
-    </group>
-  )
-}
-
 function FloorLamp({ p }: { p: [number, number] }) {
   return (
     <group position={[p[0], 0, p[1]]}>
@@ -200,29 +181,222 @@ function Poster({ p, w, h, seed, side = false }: { p: [number, number, number]; 
   )
 }
 
-/** The lounge where waiting users hang out, plus wall decor. */
+// --- plants -----------------------------------------------------------------
+
+type PlantKind = 'fiddle' | 'snake' | 'bush'
+
+/** Potted plant: terracotta pot with a rim and soil, then leaves by variety. */
+function Plant({ p, kind, s = 1 }: { p: [number, number]; kind: PlantKind; s?: number }) {
+  const leaves = useMemo(() => {
+    const out: { p: [number, number, number]; s: [number, number, number]; c: string; r: number }[] = []
+    const greens = [PAL.leafDark, PAL.leaf, PAL.leafLight]
+    if (kind === 'fiddle') {
+      // tall stem with broad leaves stepping up and around
+      for (let i = 0; i < 7; i++) {
+        const a = i * 2.2
+        out.push({ p: [Math.cos(a) * 0.22, 0.15 + i * 0.2, Math.sin(a) * 0.22], s: [0.32, 0.06, 0.22], c: greens[i % 3]!, r: a })
+      }
+      out.push({ p: [0, 1.55, 0], s: [0.24, 0.22, 0.24], c: PAL.leafLight, r: 0 })
+    } else if (kind === 'snake') {
+      // upright blades of different heights
+      for (let i = 0; i < 6; i++) {
+        const a = i * 1.05
+        const h = 0.5 + rand(i + 3) * 0.45
+        out.push({ p: [Math.cos(a) * 0.12, h / 2, Math.sin(a) * 0.12], s: [0.08, h, 0.04], c: i % 2 ? '#4f8a3c' : '#6aa84f', r: a })
+      }
+    } else {
+      // round leafy bush
+      for (let i = 0; i < 9; i++) {
+        const a = i * 0.7
+        out.push({ p: [Math.cos(a) * 0.12 * (i % 3), 0.12 + (i % 3) * 0.14, Math.sin(a) * 0.12 * (i % 3)], s: [0.32, 0.24, 0.32], c: greens[i % 3]!, r: a })
+      }
+    }
+    return out
+  }, [kind])
+  const potH = kind === 'fiddle' ? 0.6 : 0.5
+  return (
+    <group position={[p[0], 0, p[1]]} scale={s}>
+      <B p={[0, potH / 2, 0]} s={[0.5, potH, 0.5]} c="#c4683f" cast />
+      <B p={[0, potH - 0.02, 0]} s={[0.56, 0.08, 0.56]} c="#a85631" />
+      <B p={[0, potH + 0.01, 0]} s={[0.44, 0.03, 0.44]} c="#5a3d26" />
+      {kind === 'fiddle' && <B p={[0, potH + 0.75, 0]} s={[0.05, 1.5, 0.05]} c={PAL.woodDark} />}
+      {leaves.map((l, i) => (
+        <B key={i} p={[l.p[0], l.p[1] + potH, l.p[2]]} s={l.s} c={l.c} r={l.r} cast />
+      ))}
+    </group>
+  )
+}
+
+/** Placed where they frame zones: corners, beside the door and TV, by the pods. */
+const PLANTS: { p: [number, number]; kind: PlantKind; s?: number }[] = [
+  { p: [14.2, -11.9], kind: 'fiddle', s: 1.2 },
+  { p: [12.9, -6.9], kind: 'bush' },
+  { p: [-14.3, 0.2], kind: 'snake' },
+  { p: [-14.3, 2.8], kind: 'snake' },
+  { p: [-14.2, 9.3], kind: 'fiddle' },
+  { p: [-10.6, -2.7], kind: 'bush', s: 0.9 },
+  { p: [10.6, -2.7], kind: 'bush', s: 0.9 },
+  { p: [-14.2, 12.9], kind: 'fiddle', s: 1.15 },
+  { p: [14.2, 12.9], kind: 'fiddle', s: 1.15 },
+  { p: [13.9, 7.2], kind: 'snake' },
+  { p: [3.2, -11.9], kind: 'snake' },
+  { p: [-6.2, 12.9], kind: 'bush' },
+]
+
+// --- zones ------------------------------------------------------------------
+
+/** Kitchen in the back-left corner: counter with coffee machine and sink, fridge, water cooler. */
+function Kitchen() {
+  const [kx, kz] = KITCHEN
+  return (
+    <group>
+      {/* base cabinets + worktop along the back wall */}
+      <B p={[kx, 0.45, kz]} s={[6.4, 0.9, 0.9]} c="#f1eee8" cast />
+      <B p={[kx, 0.93, kz]} s={[6.5, 0.06, 1.0]} c={PAL.woodDark} />
+      {[-2.4, -1.2, 0, 1.2, 2.4].map((dx) => (
+        <B key={dx} p={[kx + dx, 0.5, kz + 0.46]} s={[0.04, 0.8, 0.01]} c="#cfcac1" />
+      ))}
+      {/* coffee machine, mugs, sink, kettle */}
+      <B p={[kx - 1.6, 1.25, kz - 0.1]} s={[0.6, 0.6, 0.5]} c={PAL.ink} cast />
+      <B p={[kx - 1.6, 1.12, kz + 0.17]} s={[0.3, 0.1, 0.12]} c={PAL.metal} />
+      <mesh geometry={GEO.box} material={GLOW.bulb} position={[kx - 1.45, 1.42, kz + 0.16]} scale={[0.08, 0.05, 0.02]} />
+      {[-0.8, -0.55, -0.3].map((dx, i) => (
+        <B key={dx} p={[kx + dx, 1.04, kz + 0.2]} s={[0.12, 0.16, 0.12]} c={[PAL.cream, PAL.brick, PAL.amber][i]!} />
+      ))}
+      <B p={[kx + 1.1, 0.94, kz]} s={[0.9, 0.04, 0.6]} c={PAL.metal} />
+      <B p={[kx + 1.1, 1.15, kz - 0.25]} s={[0.06, 0.35, 0.06]} c={PAL.metal} />
+      <C p={[kx + 2.3, 1.08, kz]} rad={0.11} h={0.26} c={PAL.teal} />
+      {/* wall shelf with jars */}
+      <B p={[kx, 2.1, kz - 0.32]} s={[4, 0.08, 0.35]} c={PAL.woodDark} />
+      {[-1.4, -0.7, 0, 0.7, 1.4].map((dx, i) => (
+        <B key={dx} p={[kx + dx, 2.28, kz - 0.32]} s={[0.22, 0.28, 0.22]} c={[PAL.amber, PAL.cream, PAL.teal, PAL.brick, PAL.cream][i]!} />
+      ))}
+      {/* fridge at the corner, water cooler at the far end */}
+      <B p={[kx - 3.75, 1.05, kz + 0.05]} s={[1.0, 2.1, 0.95]} c="#e7ebee" cast />
+      <B p={[kx - 3.75, 1.4, kz + 0.53]} s={[0.9, 0.02, 0.01]} c="#b8bec4" />
+      <B p={[kx - 3.37, 1.15, kz + 0.54]} s={[0.04, 0.5, 0.03]} c={PAL.metalDark} />
+      <group position={[kx + 3.9, 0, kz + 0.1]}>
+        <B p={[0, 0.5, 0]} s={[0.5, 1.0, 0.5]} c="#e7ebee" cast />
+        <B p={[0, 1.3, 0]} s={[0.4, 0.6, 0.4]} c="#8fc7ea" />
+        <B p={[0, 0.85, 0.26]} s={[0.12, 0.06, 0.04]} c={PAL.brick} />
+      </group>
+      {/* bar stools */}
+      {[-2.2, -0.9, 0.4].map((dx) => (
+        <group key={dx} position={[kx + dx, 0, kz + 2.4]}>
+          <B p={[0, 0.35, 0]} s={[0.06, 0.7, 0.06]} c={PAL.metal} />
+          <B p={[0, 0.72, 0]} s={[0.4, 0.08, 0.4]} c={PAL.woodDark} />
+          <B p={[0, 0.03, 0]} s={[0.36, 0.04, 0.36]} c={PAL.metalDark} />
+        </group>
+      ))}
+    </group>
+  )
+}
+
+/** Meeting corner (back-right): table, four chairs, whiteboard on the back wall. */
+function Meeting() {
+  const [mx, mz] = MEETING
+  const seats: { x: number; z: number; r: number }[] = [
+    { x: -1.35, z: 0, r: Math.PI / 2 },
+    { x: 1.35, z: 0, r: -Math.PI / 2 },
+    { x: -0.5, z: -1.0, r: 0 },
+    { x: 0.5, z: 1.0, r: Math.PI },
+  ]
+  return (
+    <group>
+      <B p={[mx, 0.74, mz]} s={[2.0, 0.08, 1.4]} c="#f1eee8" cast />
+      <B p={[mx, 0.37, mz]} s={[0.2, 0.7, 0.2]} c={PAL.metal} />
+      <B p={[mx, 0.03, mz]} s={[0.9, 0.06, 0.9]} c={PAL.metalDark} />
+      {seats.map((c, i) => (
+        <group key={i} position={[mx + c.x, 0, mz + c.z]} rotation={[0, c.r, 0]}>
+          <B p={[0, 0.25, 0]} s={[0.06, 0.5, 0.06]} c={PAL.metal} />
+          <B p={[0, 0.5, 0]} s={[0.5, 0.08, 0.5]} c="#c24f3e" />
+          <B p={[0, 0.8, -0.23]} s={[0.5, 0.55, 0.06]} c="#c24f3e" />
+        </group>
+      ))}
+      <B p={[mx - 0.3, 0.8, mz + 0.1]} s={[0.4, 0.03, 0.3]} c={PAL.ink} />
+      <B p={[mx + 0.4, 0.82, mz - 0.2]} s={[0.12, 0.1, 0.12]} c={PAL.cream} />
+      {/* whiteboard on the back wall */}
+      <group position={[mx, 1.55, ROOM_BACK + 0.06]}>
+        <B p={[0, 0, 0]} s={[2.6, 1.2, 0.05]} c={PAL.metal} />
+        <B p={[0, 0, 0.03]} s={[2.46, 1.06, 0.02]} c="#fbfbf8" />
+        <B p={[-0.6, 0.25, 0.045]} s={[0.9, 0.05, 0.01]} c="#3a6fd8" />
+        <B p={[-0.75, 0.08, 0.045]} s={[0.6, 0.05, 0.01]} c="#3a6fd8" />
+        <B p={[0.6, 0.05, 0.045]} s={[0.6, 0.45, 0.01]} c={PAL.amber} />
+        <B p={[-0.3, -0.25, 0.045]} s={[1.3, 0.05, 0.01]} c="#d84a3a" />
+      </group>
+    </group>
+  )
+}
+
+/** Printer and recycling bin beside the server racks. */
+function PrintStation() {
+  const x = RACKS[0] + 4.6
+  const z = ROOM_BACK + 0.5
+  return (
+    <group>
+      <B p={[x, 0.4, z]} s={[1.2, 0.8, 0.8]} c="#e7ebee" cast />
+      <B p={[x, 0.9, z]} s={[1.2, 0.2, 0.8]} c={PAL.metalDark} />
+      <B p={[x - 0.2, 1.02, z + 0.05]} s={[0.6, 0.04, 0.5]} c={PAL.white} />
+      <B p={[x + 0.4, 1.02, z + 0.32]} s={[0.25, 0.04, 0.1]} c={PAL.ink} />
+      <mesh geometry={GEO.box} material={GLOW.screen} position={[x + 0.42, 1.04, z + 0.34]} scale={[0.15, 0.02, 0.05]} />
+      <B p={[x + 1.2, 0.35, z - 0.1]} s={[0.5, 0.7, 0.5]} c="#3b7d5c" />
+    </group>
+  )
+}
+
+/** Long collaboration table with stools at the front centre (the walkway stays clear). */
+function CollabTable() {
+  const [cx, cz] = COLLAB
+  return (
+    <group>
+      <B p={[cx, 0.02, cz]} s={[6.4, 0.04, 3.4]} c="#7f8da3" />
+      <B p={[cx, 0.03, cz]} s={[5.8, 0.04, 2.8]} c="#9aa7bb" />
+      <B p={[cx, 0.76, cz]} s={[4.4, 0.08, 1.3]} c={PAL.wood} cast />
+      {[-2, 2].map((dx) => (
+        <B key={dx} p={[cx + dx, 0.37, cz]} s={[0.1, 0.72, 1.1]} c={PAL.metalDark} />
+      ))}
+      {[-1.5, -0.5, 0.5, 1.5].flatMap((dx) =>
+        [-1, 1].map((sz) => (
+          <group key={`${dx}${sz}`} position={[cx + dx, 0, cz + sz * 1.05]}>
+            <B p={[0, 0.25, 0]} s={[0.06, 0.5, 0.06]} c={PAL.metal} />
+            <B p={[0, 0.52, 0]} s={[0.42, 0.08, 0.42]} c={sz < 0 ? PAL.teal : PAL.amber} />
+          </group>
+        )),
+      )}
+      <B p={[cx - 1.2, 0.82, cz + 0.2]} s={[0.5, 0.03, 0.35]} c={PAL.ink} />
+      <B p={[cx + 0.8, 0.82, cz - 0.2]} s={[0.35, 0.02, 0.25]} c={PAL.white} r={0.3} />
+      <B p={[cx + 1.6, 0.86, cz + 0.1]} s={[0.12, 0.14, 0.12]} c={PAL.brick} />
+    </group>
+  )
+}
+
+/** The office furniture by zone, plus wall decor and plants. */
 export function Lounge() {
   return (
     <group>
+      {/* TV lounge (front-left) */}
       <WallTV />
       <Sofa />
-      {ARCADE_X.map((x, i) => (
-        <Arcade key={x} x={x} hue={i ? 200 : 320} />
-      ))}
-      <PingPong />
       <BeanBag p={BEANBAGS[0]!} c="#d98fb0" />
       <BeanBag p={BEANBAGS[1]!} c="#8e6cd1" />
-      <CoffeeCart />
-      <FloorLamp p={[-12.4, 9.4]} />
-      <FloorLamp p={[-12.4, 3.6]} />
-      <FloorLamp p={[3.6, 12.6]} />
-      {/* central rug where people walk through */}
-      <B p={[0, 0.02, 6.6]} s={[7.5, 0.04, 5]} c={PAL.cream} />
-      <B p={[0, 0.03, 6.6]} s={[6.9, 0.04, 4.4]} c="#c97b4f" />
-      <B p={[0, 0.04, 6.6]} s={[5.2, 0.04, 2.8]} c="#e2b36a" />
-      {/* posters */}
-      <Poster p={[LEFT_WALL + 0.06, 2.4, -1.4]} w={1.6} h={1.2} seed={1} side />
-      <Poster p={[LEFT_WALL + 0.06, 2.2, 1.6]} w={1.2} h={1.6} seed={2} side />
+      <FloorLamp p={[SOFA_X - 0.3, TV_POS[1] - 2.3]} />
+      <FloorLamp p={[SOFA_X - 0.3, TV_POS[1] + 2.3]} />
+      {/* game corner (front-right) */}
+      {ARCADE_X.map((x, i) => (
+        <Arcade key={x} x={x} hue={[320, 200, 40][i]!} />
+      ))}
+      <PingPong />
+      {/* work support */}
+      <Kitchen />
+      <Meeting />
+      <PrintStation />
+      <CollabTable />
+      {PLANTS.map((pl, i) => (
+        <Plant key={i} {...pl} />
+      ))}
+      {/* posters: beside the door and the TV, and between the back windows */}
+      <Poster p={[LEFT_WALL + 0.06, 2.3, 3.7]} w={1.0} h={1.3} seed={1} side />
+      <Poster p={[LEFT_WALL + 0.06, 2.3, 10.7]} w={1.4} h={1.0} seed={2} side />
       <Poster p={[-8.25, 4.2, ROOM_BACK + 0.06]} w={1.6} h={1.0} seed={3} />
       <Poster p={[8.5, 4.2, ROOM_BACK + 0.06]} w={1.6} h={1.0} seed={4} />
     </group>

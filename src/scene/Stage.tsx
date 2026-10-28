@@ -9,6 +9,7 @@ import { GLOW } from './kit'
 import { deskSpots, type XZ } from './layout'
 import { World } from './Island'
 import { Lounge } from './Props'
+import { CITY_GLOW, Outside } from './Outside'
 import { glassMaterial } from './voxel'
 import { Building, Desk, DeskPlate } from './Studio'
 import { RenderFarm } from './RenderFarm'
@@ -54,6 +55,9 @@ function nightFactor(mode: TimeMode, ms: number): number {
   return 1 - (h - 5) / 2.5
 }
 
+const SKY_HORIZON_DAY = '#e6f1ec'
+const SKY_HORIZON_NIGHT = '#3b2f57'
+
 const lerpColor = (a: string, b: string, t: number) => `#${new THREE.Color(a).lerp(new THREE.Color(b), t).getHexString()}`
 
 export default function Stage({ active }: { active: boolean }) {
@@ -62,7 +66,6 @@ export default function Stage({ active }: { active: boolean }) {
   const focusSlotId = useStudio((s) => s.focusSlotId)
   const focusSlot = useStudio((s) => s.focusSlot)
   const timeMode = useStudio((s) => s.timeMode)
-  const theme = useStudio((s) => s.theme)
   const sceneEvents = useStudio((s) => s.sceneEvents)
   const reducedMotion = usePrefersReducedMotion()
   const visible = usePageVisible()
@@ -80,8 +83,8 @@ export default function Stage({ active }: { active: boolean }) {
   const focusedAccount = focused ? snapshot?.accounts.find((a) => a.id === focused.account_id)?.label : undefined
 
   // Indoor backdrop (the sky only shows through the office windows), dimmer at night.
-  const [top, bottom] = theme === 'dark' ? ['#2a2733', '#17161d'] : ['#e9dfcc', '#cdbfa6']
-  const backdrop = `radial-gradient(120% 90% at 50% 40%, ${lerpColor(top, '#26232f', night * 0.6)} 0%, ${lerpColor(bottom, '#131218', night * 0.6)} 100%)`
+  // Sky behind the street scene (the fog in DayNight fades the ground into the horizon colour).
+  const backdrop = `linear-gradient(180deg, ${lerpColor('#8fd0ea', '#0d1430', night)} 0%, ${lerpColor('#cfe9ef', '#2c2654', night)} 60%, ${lerpColor(SKY_HORIZON_DAY, SKY_HORIZON_NIGHT, night)} 100%)`
 
   return (
     <div className="absolute inset-0" style={{ background: backdrop }}>
@@ -109,6 +112,7 @@ export default function Stage({ active }: { active: boolean }) {
         <DayNight night={night} />
         <World buildings={snapshot?.accounts.length ?? 2} />
         <Lounge />
+        <Outside reducedMotion={reducedMotion} />
         <RenderFarm renders={renders} reducedMotion={reducedMotion} />
         {snapshot && (
           <>
@@ -182,8 +186,8 @@ function Controls({ focus, reducedMotion }: { focus: XZ | null; reducedMotion: b
   const controls = useRef<OrbitControlsImpl>(null)
   const { camera, size, invalidate } = useThree()
   // Fit the island both ways (it is ~28 units wide and ~24 tall on screen at this angle).
-  // Fit the office both ways (about 31 x 27 units on screen at this angle).
-  const baseZoom = Math.min(size.width / 34, size.height / 26)
+  // Fit the office plus a margin of street and skyline around it.
+  const baseZoom = Math.min(size.width / 44, size.height / 32)
   const goal = useRef({ target: new THREE.Vector3(), zoom: baseZoom, animating: false })
 
   useEffect(() => {
@@ -236,6 +240,7 @@ function DayNight({ night }: { night: number }) {
   const sun = useRef<THREE.DirectionalLight>(null)
   const current = useRef(night)
   const tmp = useMemo(() => new THREE.Color(), [])
+  const scene = useThree((st) => st.scene)
 
   useFrame((_, dt) => {
     current.current += (night - current.current) * Math.min(1, dt * 2)
@@ -259,6 +264,10 @@ function DayNight({ night }: { night: number }) {
     glass.color.copy(tmp.set('#ffffff').lerp(new THREE.Color('#24306a'), n))
     glass.emissive.copy(tmp.set('#b9e2ff').lerp(new THREE.Color('#1a2350'), n))
     glass.emissiveIntensity = THREE.MathUtils.lerp(0.55, 0.3, n)
+    for (const m of CITY_GLOW) m.emissiveIntensity = n * 1.3
+    // Distance fog: the street and skyline fade into the horizon colour.
+    if (!scene.fog) scene.fog = new THREE.Fog(SKY_HORIZON_DAY, 75, 170)
+    ;(scene.fog as THREE.Fog).color.copy(tmp.set(SKY_HORIZON_DAY).lerp(new THREE.Color(SKY_HORIZON_NIGHT), n))
   })
 
   return (
