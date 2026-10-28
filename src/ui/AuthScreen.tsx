@@ -2,6 +2,7 @@ import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'reac
 import * as Tabs from '@radix-ui/react-tabs'
 import type { WorkRole } from '../data'
 import { MIN_PASSWORD, useAuth } from '../store/auth'
+import { PixelIcon } from './PixelIcon'
 
 type Mode = 'signin' | 'register' | 'forgot'
 
@@ -12,7 +13,7 @@ const WORK_ROLES: { value: WorkRole; label: string }[] = [
 ]
 
 const inputClass =
-  'mt-1 block w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm text-ink placeholder:text-muted/60'
+  'mt-1 block w-full border-[3px] border-line bg-surface-2 px-3 py-2 text-sm text-ink placeholder:text-muted/60'
 
 function Field({
   label,
@@ -45,13 +46,13 @@ function Shell({ title, subtitle, children }: { title: string; subtitle: string;
     <main className="grid min-h-full place-items-center px-4 py-8">
       <div className="w-full max-w-sm">
         <div className="mb-5 text-center">
-          <span aria-hidden className="mx-auto grid size-11 place-items-center rounded-xl bg-accent text-xl text-accent-ink">
-            ◆
+          <span aria-hidden className="px-btn mx-auto grid size-14 place-items-center bg-accent">
+            <PixelIcon name="brush" size={34} />
           </span>
           <h1 className="mt-3 text-2xl font-semibold tracking-tight">{title}</h1>
           <p className="mt-1 text-sm text-muted">{subtitle}</p>
         </div>
-        <div className="rounded-2xl border border-line bg-surface p-5 shadow-sm">{children}</div>
+        <div className="px-panel p-5">{children}</div>
         <p className="mt-4 text-center text-[11px] text-muted">Never share or store Adobe passwords here.</p>
       </div>
     </main>
@@ -83,7 +84,7 @@ function Submit({ children }: { children: ReactNode }) {
     <button
       type="submit"
       disabled={busy}
-      className="w-full rounded-lg bg-accent px-3 py-2 text-sm font-semibold text-accent-ink transition hover:brightness-105 disabled:opacity-60"
+      className="px-btn w-full bg-accent px-3 py-2 text-sm font-semibold text-accent-ink hover:brightness-110 disabled:opacity-60"
     >
       {busy ? 'Please wait…' : children}
     </button>
@@ -105,7 +106,7 @@ export function AuthScreen() {
   return (
     <Shell title="Studio Slots" subtitle="Claim an Adobe seat before you log in.">
       <Tabs.Root value={mode} onValueChange={(v) => go(v as Mode)}>
-        <Tabs.List aria-label="Account" className="mb-4 grid grid-cols-2 rounded-lg border border-line bg-surface-2 p-0.5">
+        <Tabs.List aria-label="Account" className="mb-4 grid grid-cols-2 border-[3px] border-line bg-surface-2 p-0.5">
           {(['signin', 'register'] as const).map((m) => (
             <Tabs.Trigger
               key={m}
@@ -271,7 +272,7 @@ function CheckEmailScreen({ email }: { email: string }) {
     <Shell title="Check your email" subtitle="One more step to finish registering.">
       <div className="space-y-4 text-center">
         <span aria-hidden className="mx-auto grid size-14 place-items-center rounded-full bg-accent/15 text-2xl">
-          ✉️
+          <PixelIcon name="ticket" size={30} />
         </span>
         <p className="text-sm">
           We sent a confirmation link to <strong className="break-all">{email}</strong>. Open it on this device to
@@ -288,7 +289,7 @@ function CheckEmailScreen({ email }: { email: string }) {
           type="button"
           onClick={() => void onResend()}
           disabled={wait > 0}
-          className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm font-medium disabled:opacity-50"
+          className="w-full border-[3px] border-line bg-surface-2 px-3 py-2 text-sm font-medium disabled:opacity-50"
         >
           {wait > 0 ? `Resend email in ${wait}s` : 'Resend email'}
         </button>
@@ -348,7 +349,7 @@ export function InactiveScreen() {
     <Shell title="Waiting for approval" subtitle={email ?? ''}>
       <div className="space-y-3 text-center">
         <span aria-hidden className="mx-auto grid size-14 place-items-center rounded-full bg-reserved/15 text-2xl">
-          ⏳
+          <PixelIcon name="hourglass" size={30} />
         </span>
         <p className="text-sm">
           An admin needs to approve your account before you can see the board and claim seats.
@@ -360,7 +361,7 @@ export function InactiveScreen() {
       <button
         type="button"
         onClick={() => void signOut()}
-        className="mt-4 w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm font-medium"
+        className="mt-4 w-full border-[3px] border-line bg-surface-2 px-3 py-2 text-sm font-medium"
       >
         Sign out
       </button>

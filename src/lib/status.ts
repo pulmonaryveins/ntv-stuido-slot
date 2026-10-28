@@ -1,12 +1,13 @@
 import type { SlotStatus, WorkRole } from '../data/types'
+import type { IconName } from '../ui/PixelIcon'
 
-export const STATUS_META: Record<SlotStatus, { label: string; icon: string; color: string }> = {
-  designing: { label: 'Designing', icon: '🎨', color: '#e58f4b' },
-  editing: { label: 'Editing', icon: '🎬', color: '#5b8def' },
-  color_grading: { label: 'Color grading', icon: '🌈', color: '#c75b9b' },
-  motion: { label: 'Motion', icon: '✨', color: '#8e6cd1' },
-  rendering: { label: 'Rendering', icon: '⏳', color: '#2bb3a3' },
-  break: { label: 'On break', icon: '☕', color: '#b08354' },
+export const STATUS_META: Record<SlotStatus, { label: string; icon: IconName; color: string }> = {
+  designing: { label: 'Designing', icon: 'brush', color: '#e58f4b' },
+  editing: { label: 'Editing', icon: 'clapper', color: '#5b8def' },
+  color_grading: { label: 'Color grading', icon: 'palette', color: '#c75b9b' },
+  motion: { label: 'Motion', icon: 'sparkle', color: '#8e6cd1' },
+  rendering: { label: 'Rendering', icon: 'hourglass', color: '#2bb3a3' },
+  break: { label: 'On break', icon: 'mug', color: '#b08354' },
 }
 
 /** Statuses a user can pick directly (break has its own action). */

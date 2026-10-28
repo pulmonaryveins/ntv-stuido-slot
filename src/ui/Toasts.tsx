@@ -1,13 +1,14 @@
 import * as RToast from '@radix-ui/react-toast'
 import { useStudio, type Toast } from '../store/studio'
+import { PixelIcon, type IconName } from './PixelIcon'
 
-const STYLE: Record<Toast['kind'], { icon: string; ring: string; duration: number }> = {
-  turn: { icon: '🎟️', ring: 'border-reserved', duration: 20_000 },
-  knock: { icon: '✊', ring: 'border-accent', duration: 8000 },
-  ending: { icon: '⏰', ring: 'border-overdue', duration: 12_000 },
-  render: { icon: '🎉', ring: 'border-rendering', duration: 8000 },
-  error: { icon: '⚠️', ring: 'border-overdue', duration: 6000 },
-  info: { icon: 'ℹ️', ring: 'border-line', duration: 6000 },
+const STYLE: Record<Toast['kind'], { icon: IconName; ring: string; duration: number }> = {
+  turn: { icon: 'ticket', ring: 'bg-reserved', duration: 20_000 },
+  knock: { icon: 'door', ring: 'bg-accent', duration: 8000 },
+  ending: { icon: 'clock', ring: 'bg-overdue', duration: 12_000 },
+  render: { icon: 'sparkle', ring: 'bg-rendering', duration: 8000 },
+  error: { icon: 'warn', ring: 'bg-overdue', duration: 6000 },
+  info: { icon: 'block', ring: 'bg-surface-2', duration: 6000 },
 }
 
 export function Toasts() {
@@ -26,10 +27,10 @@ export function Toasts() {
             duration={st.duration}
             type={t.kind === 'error' || t.kind === 'turn' ? 'foreground' : 'background'}
             onOpenChange={(open) => !open && dismiss(t.id)}
-            className={`flex items-start gap-3 rounded-xl border-2 bg-surface p-3 text-ink shadow-xl ${st.ring}`}
+            className="px-panel flex items-start gap-3 p-3 pl-2 text-ink"
           >
-            <span aria-hidden className="text-xl leading-none">
-              {st.icon}
+            <span aria-hidden className={`px-btn grid size-9 shrink-0 place-items-center ${st.ring}`}>
+              <PixelIcon name={st.icon} size={22} />
             </span>
             <div className="min-w-0 flex-1">
               <RToast.Title className="text-sm font-semibold">{t.title}</RToast.Title>
@@ -39,7 +40,7 @@ export function Toasts() {
                   <button
                     type="button"
                     onClick={() => openClaim(t.slotId!)}
-                    className="mt-2 rounded-lg bg-accent px-2.5 py-1 text-xs font-semibold text-accent-ink"
+                    className="px-btn mt-2 bg-accent px-2.5 py-1 text-xs font-semibold text-accent-ink"
                   >
                     Claim now
                   </button>
@@ -50,7 +51,7 @@ export function Toasts() {
                   <button
                     type="button"
                     onClick={() => void act((c) => c.extendSlot(t.slotId!, 30))}
-                    className="mt-2 rounded-lg border border-line px-2.5 py-1 text-xs font-semibold"
+                    className="px-btn mt-2 bg-surface-2 px-2.5 py-1 text-xs font-semibold"
                   >
                     +30 min
                   </button>

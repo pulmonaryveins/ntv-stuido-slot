@@ -6,6 +6,7 @@ import type { SceneEvent } from '../store/studio'
 import { useNow } from '../ui/useNow'
 import { GEO, PAL, hashString, mat, rand } from './kit'
 import { setAnchorPos, useAnchor } from './anchors'
+import { assignCharacters, findLimbs, instantiate } from './Characters'
 import { EXIT, HUB, cartSpot, queueSpot, type DeskSpot, type XZ } from './layout'
 
 type Station =
@@ -15,14 +16,17 @@ type Station =
   | { kind: 'knock'; slotId: number }
   | { kind: 'gone' }
 
+const LIMB_KEYS = ['legL', 'legR', 'armL', 'armR'] as const
+type LimbKey = (typeof LIMB_KEYS)[number]
+
 export const KNOCK_MS = 4500
 const CELEBRATE_MS = 2600
 const WALK_SPEED = 2.8
 
 /** Building floors are raised; the plaza is at ground level. */
-function groundY(x: number, z: number) {
-  const inBuilding = Math.abs(Math.abs(x) - 6.2) < 4.1 && z < 0.1 && z > -6.5
-  return inBuilding ? 0.3 : 0.04
+function groundY(_x: number, _z: number) {
+  // Studio floors are flush with the ground in the voxel world.
+  return 0.02
 }
 
 function stationKey(s: Station) {
@@ -73,14 +77,21 @@ export function Avatars({
   spots,
   events,
   reducedMotion,
+  templates = null,
 }: {
   snapshot: Snapshot
   actorId: string | null
   spots: Map<number, DeskSpot>
   events: SceneEvent[]
   reducedMotion: boolean
+  /** Character models from the optional GLB pack; null = built-in blocky avatars. */
+  templates?: THREE.Object3D[] | null
 }) {
   useNow(500) // re-evaluate knock/celebration windows
+  const assignment = useMemo(
+    () => (templates ? assignCharacters(snapshot.profiles, templates.length) : null),
+    [templates, snapshot.profiles],
+  )
   const nowPerf = performance.now()
   const stations = computeStations(snapshot, events, nowPerf)
   const celebrating = new Set(
@@ -102,6 +113,7 @@ export function Avatars({
             isMe={p.id === actorId}
             celebrate={celebrating.has(p.id)}
             reducedMotion={reducedMotion}
+            template={templates && assignment ? (templates[assignment.get(p.id) ?? 0] ?? null) : null}
           />
         ))}
     </group>
@@ -115,6 +127,7 @@ function Avatar({
   isMe,
   celebrate,
   reducedMotion,
+  template,
 }: {
   profile: Profile
   station: Station
@@ -122,13 +135,27 @@ function Avatar({
   isMe: boolean
   celebrate: boolean
   reducedMotion: boolean
+  template: THREE.Object3D | null
 }) {
   const root = useRef<THREE.Group>(null)
   const body = useRef<THREE.Group>(null)
-  const legL = useRef<THREE.Group>(null)
-  const legR = useRef<THREE.Group>(null)
-  const armL = useRef<THREE.Group>(null)
-  const armR = useRef<THREE.Group>(null)
+  // Limbs animate as offsets from their rest rotation (GLB bones have their own rest pose).
+  const limbs = useRef<Partial<Record<LimbKey, { o: THREE.Object3D; rx: number; rz: number }>>>({})
+  const model = useMemo(() => (template ? instantiate(template) : null), [template])
+  useEffect(() => {
+    if (!model) return
+    const found = findLimbs(model)
+    limbs.current = {}
+    for (const k of LIMB_KEYS) {
+      const o = found[k]
+      if (o) limbs.current[k] = { o, rx: o.rotation.x, rz: o.rotation.z }
+    }
+  }, [model])
+  const limbRef = (k: LimbKey) => (o: THREE.Object3D | null) => {
+    if (model) return
+    if (o) limbs.current[k] = { o, rx: 0, rz: 0 }
+    else delete limbs.current[k]
+  }
   const sim = useRef({
     pos: new THREE.Vector3(),
     path: [] as XZ[],
@@ -136,6 +163,7 @@ function Avatar({
     prevKind: '' as Station['kind'] | '',
     started: false,
     facing: 0,
+    lastKey: '',
   })
   const key = stationKey(station)
   const skin = PAL.skin[hashString(profile.id) % PAL.skin.length]!
@@ -143,6 +171,9 @@ function Avatar({
 
   useEffect(() => {
     const s = sim.current
+    // Idempotent per station: StrictMode re-runs effects, which would replay the walk.
+    if (s.lastKey === key) return
+    s.lastKey = key
     const route = routeFor(station, spots)
     const end = route[route.length - 1]!
     if (!s.started || reducedMotion) {
@@ -208,59 +239,75 @@ function Avatar({
     g.rotation.y += diff * Math.min(1, dt * 10)
 
     const swing = walking ? Math.sin(t * 11) * 0.7 : 0
-    legL.current!.rotation.x = sit ? -Math.PI / 2 : swing
-    legR.current!.rotation.x = sit ? -Math.PI / 2 : -swing
-    armL.current!.rotation.x = -swing * 0.8
-    armR.current!.rotation.x = swing * 0.8
-    armL.current!.rotation.z = 0
-    armR.current!.rotation.z = 0
-
+    const pose = { legL: sit ? -Math.PI / 2 : swing, legR: sit ? -Math.PI / 2 : -swing, armL: -swing * 0.8, armR: swing * 0.8 }
+    let armZ = 0
     if (sit) {
-      armL.current!.rotation.x = -1.1 + Math.sin(t * 6) * 0.05
-      armR.current!.rotation.x = -1.1 + Math.cos(t * 7) * 0.05
+      pose.armL = -1.1 + Math.sin(t * 6) * 0.05
+      pose.armR = -1.1 + Math.cos(t * 7) * 0.05
     }
-    if (arrived && station.kind === 'knock') {
-      armR.current!.rotation.x = -2.3 + Math.sin(t * 14) * 0.35
-    }
+    if (arrived && station.kind === 'knock') pose.armR = -2.3 + Math.sin(t * 14) * 0.35
     if (celebrate && !reducedMotion) {
       y += Math.abs(Math.sin(t * 9)) * 0.35
-      armL.current!.rotation.z = 2.6
-      armR.current!.rotation.z = -2.6
-      armL.current!.rotation.x = 0
-      armR.current!.rotation.x = 0
+      armZ = 2.6
+      pose.armL = 0
+      pose.armR = 0
     }
-    if (walking) y += Math.abs(Math.sin(t * 11)) * 0.05
-    // Seat top is at 0.67 and the hip sits 0.52 above the root.
-    g.position.set(s.pos.x, sit ? 0.15 + y : groundY(s.pos.x, s.pos.z) + y, s.pos.z)
+    for (const k of LIMB_KEYS) {
+      const limb = limbs.current[k]
+      if (!limb) continue
+      limb.o.rotation.x = limb.rx + pose[k]
+      limb.o.rotation.z = limb.rz + (k === 'armL' ? armZ : k === 'armR' ? -armZ : 0)
+    }
+    if (walking) y += Math.abs(Math.sin(t * 11)) * (model ? 0.09 : 0.05)
+    // A model without leg bones cannot bend, so it settles lower behind the desk instead.
+    const sitDrop = model && !limbs.current.legL ? -0.45 : 0
+    // Seat top is at 0.66 and the hip sits 0.52 above the root.
+    g.position.set(s.pos.x, sit ? 0.14 + sitDrop + y : groundY(s.pos.x, s.pos.z) + y, s.pos.z)
     setAnchorPos(`bubble:${profile.id}`, g.position.x, g.position.y + 2.1, g.position.z)
   })
+
+  if (model) {
+    return (
+      <group ref={root}>
+        <group ref={body}>
+          <primitive object={model} />
+          {isMe && <mesh geometry={GEO.cone} material={mat(PAL.amber)} position={[0, 2.0, 0]} scale={0.22} />}
+        </group>
+      </group>
+    )
+  }
 
   return (
     <group ref={root}>
       <group ref={body} scale={0.95}>
         {/* legs (pivot at hip) */}
-        <group ref={legL} position={[-0.11, 0.55, 0]}>
+        <group ref={limbRef('legL')} position={[-0.11, 0.55, 0]}>
           <mesh geometry={GEO.box} material={mat('#3b4255')} position={[0, -0.27, 0]} scale={[0.17, 0.55, 0.19]} castShadow />
         </group>
-        <group ref={legR} position={[0.11, 0.55, 0]}>
+        <group ref={limbRef('legR')} position={[0.11, 0.55, 0]}>
           <mesh geometry={GEO.box} material={mat('#3b4255')} position={[0, -0.27, 0]} scale={[0.17, 0.55, 0.19]} castShadow />
         </group>
         {/* torso */}
         <mesh geometry={GEO.box} material={shirt} position={[0, 0.83, 0]} scale={[0.46, 0.58, 0.28]} castShadow />
         {/* arms (pivot at shoulder) */}
-        <group ref={armL} position={[-0.3, 1.08, 0]}>
+        <group ref={limbRef('armL')} position={[-0.3, 1.08, 0]}>
           <mesh geometry={GEO.box} material={shirt} position={[0, -0.24, 0]} scale={[0.13, 0.48, 0.15]} />
           <mesh geometry={GEO.box} material={mat(skin)} position={[0, -0.52, 0]} scale={[0.11, 0.1, 0.12]} />
         </group>
-        <group ref={armR} position={[0.3, 1.08, 0]}>
+        <group ref={limbRef('armR')} position={[0.3, 1.08, 0]}>
           <mesh geometry={GEO.box} material={shirt} position={[0, -0.24, 0]} scale={[0.13, 0.48, 0.15]} />
           <mesh geometry={GEO.box} material={mat(skin)} position={[0, -0.52, 0]} scale={[0.11, 0.1, 0.12]} />
         </group>
         {/* head */}
-        <mesh geometry={GEO.ico1} material={mat(skin)} position={[0, 1.36, 0]} scale={0.44} castShadow />
-        <mesh geometry={GEO.dome} material={mat('#3a2a22')} position={[0, 1.42, -0.02]} scale={[0.47, 0.42, 0.47]} />
-        <mesh geometry={GEO.box} material={mat(PAL.ink)} position={[-0.08, 1.38, 0.2]} scale={0.04} />
-        <mesh geometry={GEO.box} material={mat(PAL.ink)} position={[0.08, 1.38, 0.2]} scale={0.04} />
+        {/* cube head, hair cap + back, pixel eyes */}
+        <mesh geometry={GEO.box} material={mat(skin)} position={[0, 1.36, 0]} scale={0.44} castShadow />
+        <mesh geometry={GEO.box} material={mat('#3a2a22')} position={[0, 1.61, 0]} scale={[0.48, 0.1, 0.48]} />
+        <mesh geometry={GEO.box} material={mat('#3a2a22')} position={[0, 1.44, -0.2]} scale={[0.48, 0.3, 0.1]} />
+        <mesh geometry={GEO.box} material={mat(PAL.white)} position={[-0.1, 1.38, 0.222]} scale={[0.09, 0.06, 0.01]} />
+        <mesh geometry={GEO.box} material={mat(PAL.white)} position={[0.1, 1.38, 0.222]} scale={[0.09, 0.06, 0.01]} />
+        <mesh geometry={GEO.box} material={mat(PAL.ink)} position={[-0.08, 1.38, 0.226]} scale={[0.045, 0.06, 0.01]} />
+        <mesh geometry={GEO.box} material={mat(PAL.ink)} position={[0.12, 1.38, 0.226]} scale={[0.045, 0.06, 0.01]} />
+        <mesh geometry={GEO.box} material={mat('#b97b55')} position={[0, 1.26, 0.222]} scale={[0.12, 0.03, 0.01]} />
         <RoleProp role={profile.work_role} color={profile.avatar_color} />
         {isMe && <mesh geometry={GEO.cone} material={mat(PAL.amber)} position={[0, 2.0, 0]} rotation={[Math.PI, 0, 0]} scale={[0.22, 0.22, 0.22]} />}
       </group>
@@ -285,7 +332,7 @@ export function KnockBubble({ userId }: { userId: string }) {
   const anchor = useAnchor(`bubble:${userId}`, 0, -100, 0)
   return (
     <div ref={anchor} className="pointer-events-none absolute left-0 top-0">
-      <div className="whitespace-nowrap rounded-full border border-line bg-surface px-2 py-0.5 text-[11px] font-semibold text-ink shadow">
+      <div className="whitespace-nowrap border-2 border-line bg-surface px-2 py-0.5 text-[11px] font-semibold text-ink shadow">
         Knock knock ✊
       </div>
     </div>
@@ -305,7 +352,7 @@ function RoleProp({ role, color }: { role: Profile['work_role']; color: string }
   }
   if (role === 'designer') {
     return (
-      <group position={[0, 1.38, 0.22]}>
+      <group position={[0, 1.38, 0.235]}>
         <mesh geometry={GEO.box} material={mat(PAL.ink)} position={[-0.09, 0, 0]} scale={[0.13, 0.09, 0.02]} />
         <mesh geometry={GEO.box} material={mat(PAL.ink)} position={[0.09, 0, 0]} scale={[0.13, 0.09, 0.02]} />
         <mesh geometry={GEO.box} material={mat(PAL.ink)} position={[0, 0.01, 0]} scale={[0.06, 0.02, 0.02]} />
@@ -314,9 +361,9 @@ function RoleProp({ role, color }: { role: Profile['work_role']; color: string }
   }
   return (
     <group>
-      <mesh geometry={GEO.dome} material={mat(color)} position={[0, 1.47, 0]} scale={[0.5, 0.42, 0.5]} />
-      <mesh geometry={GEO.cyl} material={mat(PAL.cream)} position={[0, 1.48, 0]} scale={[0.52, 0.07, 0.52]} />
-      <mesh geometry={GEO.ico} material={mat(PAL.cream)} position={[0, 1.7, 0]} scale={0.1} />
+      <mesh geometry={GEO.box} material={mat(color)} position={[0, 1.66, 0]} scale={[0.5, 0.22, 0.5]} />
+      <mesh geometry={GEO.box} material={mat(PAL.cream)} position={[0, 1.56, 0]} scale={[0.52, 0.07, 0.52]} />
+      <mesh geometry={GEO.box} material={mat(PAL.cream)} position={[0, 1.83, 0]} scale={0.12} />
     </group>
   )
 }

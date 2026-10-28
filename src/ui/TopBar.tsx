@@ -4,6 +4,7 @@ import { backendMode } from '../lib/backend'
 import { useAuth } from '../store/auth'
 import { useStudio, type Speed, type TimeMode, type View } from '../store/studio'
 import { Button, Segmented } from './controls'
+import { PixelIcon } from './PixelIcon'
 
 export function TopBar() {
   const s = useStudio()
@@ -12,14 +13,14 @@ export function TopBar() {
   const pendingCount = isAdmin ? (s.snapshot?.profiles.filter((p) => !p.active).length ?? 0) : 0
 
   return (
-    <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line bg-surface px-3 py-2 sm:px-4">
+    <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b-[3px] border-line bg-surface px-3 py-2 shadow-[inset_0_-3px_0_var(--lo)] sm:px-4">
       <div className="mr-auto flex items-center gap-2">
-        <span aria-hidden className="grid size-7 place-items-center rounded-lg bg-accent text-sm text-accent-ink">
-          ◆
+        <span aria-hidden className="px-btn grid size-8 place-items-center bg-accent">
+          <PixelIcon name="brush" size={20} />
         </span>
-        <h1 className="text-base font-semibold tracking-tight">Studio Slots</h1>
+        <h1 className="text-lg font-semibold tracking-wide">Studio Slots</h1>
         {mockClient && (
-          <span className="rounded-full border border-line px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
+          <span className="border-2 border-line bg-reserved px-1.5 text-[10px] font-semibold uppercase tracking-wide text-ink">
             Mock data
           </span>
         )}
@@ -41,8 +42,8 @@ export function TopBar() {
         onChange={s.setTimeMode}
         options={[
           { value: 'auto', label: 'Auto', title: 'Time of day: follow clock' },
-          { value: 'day', label: '☀', title: 'Day' },
-          { value: 'night', label: '☾', title: 'Night' },
+          { value: 'day', label: <PixelIcon name="sun" size={14} />, title: 'Day' },
+          { value: 'night', label: <PixelIcon name="moon" size={14} />, title: 'Night' },
         ]}
       />
 
@@ -51,7 +52,7 @@ export function TopBar() {
         aria-label={`Switch to ${s.theme === 'dark' ? 'light' : 'dark'} theme`}
         onClick={() => s.setTheme(s.theme === 'dark' ? 'light' : 'dark')}
       >
-        {s.theme === 'dark' ? '☀︎' : '☾'}
+        <PixelIcon name={s.theme === 'dark' ? 'sun' : 'moon'} size={18} />
       </Button>
 
       {backendMode === 'bff' && me && <AccountMenu name={me.name} color={me.avatar_color} />}
@@ -73,7 +74,7 @@ export function TopBar() {
 
       {mockClient && (
         <div
-          className="flex flex-wrap items-center gap-2 rounded-xl border border-dashed border-accent/60 bg-accent/5 px-2 py-1"
+          className="flex flex-wrap items-center gap-2 border-[3px] border-dashed border-accent bg-accent/10 px-2 py-1"
           role="group"
           aria-label="Dev tools (mock data only)"
         >
@@ -129,14 +130,14 @@ function ActingAs() {
     <Select.Root value={actorId ?? undefined} onValueChange={setActor}>
       <Select.Trigger
         aria-label="Acting as (dev tool)"
-        className="inline-flex items-center gap-1.5 rounded-lg border border-line bg-surface px-2 py-1 text-xs font-medium"
+        className="inline-flex items-center gap-1.5 px-panel px-2 py-1 text-xs font-medium"
       >
         <span className="text-muted">Acting as</span>
         <Select.Value placeholder="Pick user" />
         <span aria-hidden>▾</span>
       </Select.Trigger>
       <Select.Portal>
-        <Select.Content position="popper" sideOffset={4} className="z-50 max-h-80 overflow-hidden rounded-lg border border-line bg-surface shadow-xl">
+        <Select.Content position="popper" sideOffset={4} className="z-50 max-h-80 overflow-hidden px-panel">
           <Select.Viewport className="p-1">
             {profiles.map((p) => (
               <Select.Item

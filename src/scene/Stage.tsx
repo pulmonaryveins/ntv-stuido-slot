@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Component, Suspense, useEffect, useMemo, useRef, useState, type ComponentProps, type ReactNode } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, OrthographicCamera } from '@react-three/drei'
 import * as THREE from 'three'
@@ -7,11 +7,12 @@ import { useStudio, type TimeMode } from '../store/studio'
 import { useNow } from '../ui/useNow'
 import { GLOW } from './kit'
 import { deskSpots, type XZ } from './layout'
-import { Island, Clouds } from './Island'
-import { Containers, Plaza, SolarRows, Vegetation } from './Props'
+import { Clouds, World } from './Island'
+import { Containers, Plaza, SolarRows } from './Props'
 import { Building, Desk, DeskPlate } from './Studio'
 import { RenderFarm } from './RenderFarm'
 import { Avatars, Celebrations, Dog, KnockBubble, activeKnockers } from './Avatars'
+import { useCharacterTemplates } from './Characters'
 import { AnchorProjector } from './anchors'
 
 const AZIMUTH = THREE.MathUtils.degToRad(32)
@@ -102,9 +103,8 @@ export default function Stage({ active }: { active: boolean }) {
         <Controls focus={focus} reducedMotion={reducedMotion} />
         <AnchorProjector />
         <DayNight night={night} />
-        <Island />
+        <World buildings={snapshot?.accounts.length ?? 2} />
         <Clouds reducedMotion={reducedMotion} />
-        <Vegetation />
         <Plaza />
         <SolarRows />
         <Containers />
@@ -120,7 +120,7 @@ export default function Stage({ active }: { active: boolean }) {
 <Desk key={slot.id} spot={spot} slot={slot} />
               ) : null
             })}
-            <Avatars snapshot={snapshot} actorId={actorId} spots={spots} events={sceneEvents} reducedMotion={reducedMotion} />
+            <AvatarLayer snapshot={snapshot} actorId={actorId} spots={spots} events={sceneEvents} reducedMotion={reducedMotion} />
             <Celebrations events={sceneEvents} spots={spots} />
           </>
         )}
@@ -146,7 +146,7 @@ export default function Stage({ active }: { active: boolean }) {
             <button
               type="button"
               onClick={() => focusSlot(null)}
-              className="pointer-events-auto rounded-lg border border-line bg-surface/90 px-2.5 py-1.5 text-sm font-semibold text-ink shadow"
+              className="pointer-events-auto px-panel px-2.5 py-1.5 text-sm font-semibold text-ink shadow"
             >
               ← Overview
             </button>
@@ -169,7 +169,8 @@ export default function Stage({ active }: { active: boolean }) {
 function Controls({ focus, reducedMotion }: { focus: XZ | null; reducedMotion: boolean }) {
   const controls = useRef<OrbitControlsImpl>(null)
   const { camera, size, invalidate } = useThree()
-  const baseZoom = Math.min(size.width, size.height * 1.5) / 34
+  // Fit the island both ways (it is ~28 units wide and ~24 tall on screen at this angle).
+  const baseZoom = Math.min(size.width / 32, size.height / 25)
   const goal = useRef({ target: new THREE.Vector3(), zoom: baseZoom, animating: false })
 
   useEffect(() => {
@@ -259,4 +260,38 @@ function DayNight({ night }: { night: number }) {
       />
     </>
   )
+}
+
+type AvatarProps = Omit<ComponentProps<typeof Avatars>, 'templates'>
+
+/** Character models from the optional GLB pack when present; blocky avatars otherwise or while loading. */
+function AvatarLayer(props: AvatarProps) {
+  const available = useStudio((s) => s.charactersAvailable)
+  const blocky = <Avatars {...props} />
+  if (!available) return blocky
+  return (
+    <ModelBoundary fallback={blocky}>
+      <Suspense fallback={blocky}>
+        <CharacterAvatars {...props} />
+      </Suspense>
+    </ModelBoundary>
+  )
+}
+
+function CharacterAvatars(props: AvatarProps) {
+  const templates = useCharacterTemplates()
+  return <Avatars {...props} templates={templates} />
+}
+
+class ModelBoundary extends Component<{ children: ReactNode; fallback: ReactNode }, { failed: boolean }> {
+  state = { failed: false }
+  static getDerivedStateFromError() {
+    return { failed: true }
+  }
+  componentDidCatch(error: unknown) {
+    console.warn('[studio] character models failed to load, using blocky avatars', error)
+  }
+  render() {
+    return this.state.failed ? this.props.fallback : this.props.children
+  }
 }

@@ -7,6 +7,7 @@ import { MINUTE, formatClock, toIso } from '../lib/format'
 import { studioClient } from '../data'
 import { useStudio } from '../store/studio'
 import { Button } from './controls'
+import { PixelIcon } from './PixelIcon'
 
 function Shell({
   open,
@@ -25,7 +26,7 @@ function Shell({
     <Dialog.Root open={open} onOpenChange={(o) => !o && onClose()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(92vw,420px)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-line bg-surface p-5 text-ink shadow-2xl">
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(92vw,420px)] -translate-x-1/2 -translate-y-1/2 px-panel p-5 text-ink">
           <Dialog.Title className="text-lg font-semibold">{title}</Dialog.Title>
           <Dialog.Description className="mt-0.5 text-sm text-muted">{description}</Dialog.Description>
           <div className="mt-4">{children}</div>
@@ -79,7 +80,7 @@ export function ClaimDialog() {
             {CLAIM_STATUSES.map((st) => (
               <label
                 key={st}
-                className="flex cursor-pointer items-center gap-2 rounded-lg border border-line px-2.5 py-2 text-sm has-[:checked]:border-accent has-[:checked]:bg-accent/10"
+                className="flex cursor-pointer items-center gap-2 border-[3px] border-line px-2.5 py-2 text-sm has-[:checked]:border-accent has-[:checked]:bg-accent/10"
               >
                 <input
                   type="radio"
@@ -89,7 +90,7 @@ export function ClaimDialog() {
                   onChange={() => setStatus(st)}
                   className="accent-[var(--accent)]"
                 />
-                <span aria-hidden>{STATUS_META[st].icon}</span>
+                <PixelIcon name={STATUS_META[st].icon} size={16} />
                 {STATUS_META[st].label}
               </label>
             ))}
@@ -100,7 +101,7 @@ export function ClaimDialog() {
           <select
             value={minutes}
             onChange={(e) => setMinutes(Number(e.target.value))}
-            className="mt-1 block w-full rounded-lg border border-line bg-surface-2 px-2.5 py-2"
+            className="mt-1 block w-full border-[3px] border-line bg-surface-2 px-2.5 py-2"
           >
             {DURATIONS.filter((d) => d <= max).map((d) => (
               <option key={d} value={d}>
@@ -111,7 +112,7 @@ export function ClaimDialog() {
         </label>
         <div className="flex justify-end gap-2">
           <Button onClick={close}>Cancel</Button>
-          <button type="submit" className="rounded-lg bg-accent px-3 py-1.5 text-sm font-semibold text-accent-ink">
+          <button type="submit" className="px-btn bg-accent px-3 py-1.5 text-sm font-semibold text-accent-ink">
             Claim slot
           </button>
         </div>
@@ -159,7 +160,7 @@ export function RenderEtaDialog() {
             value={eta}
             onChange={(e) => setEta(Number(e.target.value))}
             aria-invalid={!valid}
-            className="mt-1 block w-full rounded-lg border border-line bg-surface-2 px-2.5 py-2"
+            className="mt-1 block w-full border-[3px] border-line bg-surface-2 px-2.5 py-2"
           />
         </label>
         <p className="text-xs text-muted">
@@ -170,7 +171,7 @@ export function RenderEtaDialog() {
           <button
             type="submit"
             disabled={!valid}
-            className="rounded-lg bg-rendering px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
+            className="px-btn bg-rendering px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50"
           >
             Start render
           </button>

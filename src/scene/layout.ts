@@ -6,15 +6,16 @@ export const ISLAND_RADIUS = 14
 export const HUB: XZ = [0, 4.2]
 export const EXIT: XZ = [0, 13.2]
 export const CART: XZ = [5.2, 6.2]
-export const TOWER: XZ = [0, -9.4]
+export const TOWER: XZ = [0, -9.5]
 
 /** Building index 0 = left (first account), 1 = right. */
 export function buildingX(index: number) {
-  return index === 0 ? -6.2 : 6.2
+  return index === 0 ? -6 : 6
 }
-export const BUILDING_Z = -3.2
+// Grid-aligned to the 0.5-unit voxels: floor spans z in [-6.5, 0].
+export const BUILDING_Z = -3.25
 export const BUILDING_W = 8
-export const BUILDING_D = 6.4
+export const BUILDING_D = 6.5
 
 export interface DeskSpot {
   slotId: number

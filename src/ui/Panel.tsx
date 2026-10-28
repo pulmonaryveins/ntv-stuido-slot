@@ -7,6 +7,7 @@ import { useStudio } from '../store/studio'
 import { Button, GateButton } from './controls'
 import { SlotCard } from './SlotCard'
 import { useNow } from './useNow'
+import { PixelIcon } from './PixelIcon'
 
 /** Slots, waiting list and activity. `wide` lays sections out in columns (List view). */
 export function Panel({ wide }: { wide: boolean }) {
@@ -54,7 +55,7 @@ function WaitingList({ snapshot, viewer, now }: { snapshot: Snapshot; viewer: Vi
   const queue = [...snapshot.queue].sort((a, b) => a.joined_at.localeCompare(b.joined_at) || a.id - b.id)
 
   return (
-    <section aria-labelledby="queue-heading" className="rounded-xl border border-line bg-surface p-3">
+    <section aria-labelledby="queue-heading" className="px-panel p-3">
       <div className="flex items-center gap-2">
         <h2 id="queue-heading" className="mr-auto text-sm font-semibold">
           Waiting list <span className="font-normal text-muted">({queue.length})</span>
@@ -128,7 +129,7 @@ function WaitingList({ snapshot, viewer, now }: { snapshot: Snapshot; viewer: Vi
 function ActivityFeed({ snapshot, now }: { snapshot: Snapshot; now: number }) {
   const items = snapshot.activity.slice(0, 30)
   return (
-    <section aria-labelledby="activity-heading" className="rounded-xl border border-line bg-surface p-3">
+    <section aria-labelledby="activity-heading" className="px-panel p-3">
       <h2 id="activity-heading" className="text-sm font-semibold">
         Activity
       </h2>
@@ -138,9 +139,7 @@ function ActivityFeed({ snapshot, now }: { snapshot: Snapshot; now: number }) {
           const t = toMs(e.created_at) ?? now
           return (
             <li key={e.id} className="flex gap-2">
-              <span aria-hidden className="w-5 shrink-0 text-center">
-                {d.icon}
-              </span>
+              <PixelIcon name={d.icon} size={16} className="mt-0.5" />
               <span className="min-w-0 flex-1">{d.text}</span>
               <time dateTime={e.created_at} className="shrink-0 text-xs text-muted">
                 {formatAgo(t, now)}

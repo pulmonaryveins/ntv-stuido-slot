@@ -27,7 +27,7 @@ export function AdminStub() {
         <Button onClick={() => setPage('board')}>Back to board</Button>
       </div>
 
-      <section aria-labelledby="admin-pending" className="rounded-xl border border-line bg-surface p-4">
+      <section aria-labelledby="admin-pending" className="px-panel p-4">
         <h3 id="admin-pending" className="text-sm font-semibold">
           Waiting for approval or inactive ({pending.length})
         </h3>
@@ -54,7 +54,7 @@ export function AdminStub() {
         </p>
       </section>
 
-      <section aria-labelledby="admin-users" className="rounded-xl border border-line bg-surface p-4">
+      <section aria-labelledby="admin-users" className="px-panel p-4">
         <h3 id="admin-users" className="text-sm font-semibold">
           All users ({profiles.length})
         </h3>
@@ -86,7 +86,7 @@ export function AdminStub() {
                         disabled={self}
                         title={self ? 'You cannot change your own role' : undefined}
                         onChange={(e) => update(p, { role: e.target.value as Profile['role'] })}
-                        className="rounded-md border border-line bg-surface-2 px-1.5 py-1 text-sm disabled:opacity-50"
+                        className="border-2 border-line bg-surface-2 px-1.5 py-1 text-sm disabled:opacity-50"
                       >
                         <option value="user">User</option>
                         <option value="admin">Admin</option>
@@ -110,7 +110,7 @@ export function AdminStub() {
         </div>
       </section>
 
-      <p className="rounded-xl border border-dashed border-line bg-surface p-4 text-sm text-muted">
+      <p className="border-[3px] border-dashed border-line bg-surface p-4 text-sm text-muted">
         Still to come: edit accounts, slots and rules, and the full activity log with filters. Force release and
         queue removal work from the board.
       </p>

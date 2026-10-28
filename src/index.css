@@ -1,31 +1,52 @@
+@import '@fontsource/pixelify-sans/400.css';
+@import '@fontsource/pixelify-sans/600.css';
 @import 'tailwindcss';
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
+/* Voxel / pixel-art theme: square corners, hard outlines, bevelled blocks. */
 :root {
-  --bg: #f4eee4;
-  --surface: #fffdf8;
-  --surface-2: #f8f2e8;
-  --border: #e3d8c6;
-  --text: #2d2a26;
-  --muted: #776d62;
-  --accent: #d9822b;
+  --bg: #cdb88f; /* sandstone */
+  --bg-2: #c4ae84;
+  --surface: #f0e3c4; /* birch plank */
+  --surface-2: #e2d0a8;
+  --border: #2b2117; /* block outline */
+  --text: #241b12;
+  --muted: #6b5940;
+  --accent: #4f9a37; /* grass green */
   --accent-ink: #ffffff;
-  --ring: #2b7fd9;
+  --ring: #2f7bd9;
+  --hi: rgba(255, 255, 255, 0.55);
+  --lo: rgba(60, 40, 15, 0.28);
   color-scheme: light;
 }
 
 [data-theme='dark'] {
-  --bg: #15161b;
-  --surface: #1e2027;
-  --surface-2: #262932;
-  --border: #343844;
-  --text: #ece6dc;
-  --muted: #a39b8f;
-  --accent: #f0a04b;
-  --accent-ink: #1b1309;
+  --bg: #1d1c22; /* deep slate */
+  --bg-2: #232229;
+  --surface: #2c2a33;
+  --surface-2: #383640;
+  --border: #0b0a0e;
+  --text: #f1ebdc;
+  --muted: #aea595;
+  --accent: #65b843;
+  --accent-ink: #0c1907;
   --ring: #7fb6ff;
+  --hi: rgba(255, 255, 255, 0.12);
+  --lo: rgba(0, 0, 0, 0.45);
   color-scheme: dark;
+}
+
+@theme {
+  --font-pixel: 'Pixelify Sans', ui-monospace, monospace;
+  --radius-xs: 0px;
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-full: 0px;
 }
 
 @theme inline {
@@ -38,7 +59,7 @@
   --color-accent: var(--accent);
   --color-accent-ink: var(--accent-ink);
   --color-ring: var(--ring);
-  --color-free: #4caf7a;
+  --color-free: #4caf50;
   --color-reserved: #e2b33c;
   --color-rendering: #2bb3a3;
   --color-overdue: #e0524f;
@@ -51,29 +72,101 @@ body,
 }
 
 body {
-  background: var(--bg);
   color: var(--text);
   font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* faint block grid */
+  background-color: var(--bg);
+  background-image: conic-gradient(var(--bg-2) 25%, transparent 0 50%, var(--bg-2) 0 75%, transparent 0);
+  background-size: 32px 32px;
   -webkit-font-smoothing: antialiased;
 }
 
+/* Pixel font for UI chrome (its capitals stay crisp at small sizes); body text stays readable. */
+h1,
+h2,
+h3,
+legend,
+.px-btn,
+.font-pixel,
+[role='radio'],
+[role='tab'] {
+  font-family: var(--font-pixel);
+  letter-spacing: 0.04em;
+}
+h2,
+h3,
+legend,
+.px-btn,
+[role='radio'],
+[role='tab'] {
+  text-transform: uppercase;
+}
+
 :focus-visible {
-  outline: 2px solid var(--ring);
+  outline: 3px solid var(--ring);
   outline-offset: 2px;
+}
+
+@layer components {
+/* A bevelled block panel. */
+.px-panel {
+  background: var(--surface);
+  border: 3px solid var(--border);
+  box-shadow:
+    inset 3px 3px 0 var(--hi),
+    inset -3px -3px 0 var(--lo),
+    3px 3px 0 rgba(0, 0, 0, 0.18);
+}
+
+/* A pressable block button. */
+.px-btn {
+  border: 3px solid var(--border);
+  box-shadow:
+    inset 2px 2px 0 var(--hi),
+    inset -2px -3px 0 var(--lo);
+  transition: none;
+}
+.px-btn:not([aria-disabled='true']):not(:disabled):active {
+  transform: translateY(2px);
+  box-shadow:
+    inset -2px -2px 0 var(--hi),
+    inset 2px 3px 0 var(--lo);
+}
+
+}
+
+/* Segmented "XP bar" style progress. */
+.px-bar {
+  height: 10px;
+  border: 2px solid var(--border);
+  background: var(--surface-2);
+  overflow: hidden;
+}
+.px-bar > span {
+  display: block;
+  height: 100%;
+  background-image: repeating-linear-gradient(90deg, currentColor 0 7px, transparent 7px 9px);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35);
+}
+
+.px-pixelated {
+  image-rendering: pixelated;
 }
 
 @keyframes ss-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 var(--pulse-color, transparent);
+    outline: 3px solid var(--pulse-color, transparent);
+    outline-offset: 0;
   }
   50% {
-    box-shadow: 0 0 0 6px transparent;
+    outline: 3px solid transparent;
+    outline-offset: 4px;
   }
 }
 
 .pulse {
-  animation: ss-pulse 1.8s ease-in-out infinite;
+  animation: ss-pulse 1.4s steps(4) infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

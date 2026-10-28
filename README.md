@@ -107,6 +107,25 @@ users, rate limit, realtime join. Real concurrency is not covered there (single 
   for sign-up; needs a site key in the app (not wired yet).
 - Rotate the **database password** if it was ever pasted anywhere public.
 
+## Look and feel
+
+- **Voxel / pixel-art theme** (original, not copied from any game): bevelled block panels and
+  buttons, segmented progress bars, hand-made 12x12 pixel icons (`src/ui/PixelIcon.tsx`).
+  Pixelify Sans (OFL, self-hosted via `@fontsource`) for headings, buttons and labels; body text
+  uses the system font for readability.
+- **3D:** the island, studios, render tower and trees are real 0.5-unit voxels with procedurally
+  drawn 16x16 textures (`src/scene/voxel.tsx`, `src/scene/world.ts`), rendered as one instanced
+  mesh per block type with hidden faces culled.
+
+### Optional character pack
+
+If `public/models/superhero_minecraft_character.glb` exists, avatars use its characters; each
+user gets a random but stable one (hash of their id, distinct until all are in use). Without the
+file the app uses its built-in blocky avatars. The file is gitignored, so it is not deployed
+unless you add it deliberately; check its licence and add the author credit to the footer before
+doing so. The loader maps the legacy `KHR_materials_pbrSpecularGlossiness` materials so textures
+show, and seats models without leg bones lower behind the desk.
+
 ## Environment variables
 
 All server-only: read by the BFF, never bundled into the browser.

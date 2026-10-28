@@ -1,39 +1,5 @@
-import { B, C, GEO, GLOW, PAL, mat, rand } from './kit'
+import { B, C, GEO, GLOW, PAL, mat } from './kit'
 import { CART } from './layout'
-
-export function Tree({ p, s = 1, seed = 0 }: { p: [number, number]; s?: number; seed?: number }) {
-  const round = seed % 3 !== 0
-  return (
-    <group position={[p[0], 0, p[1]]} scale={s}>
-      <C p={[0, 0.6, 0]} rad={0.14} h={1.2} c={PAL.woodDark} cast />
-      {round ? (
-        <>
-          <mesh geometry={GEO.ico} material={mat(seed % 2 ? PAL.leaf : PAL.leafLight)} position={[0, 1.7, 0]} scale={1.6} castShadow />
-          <mesh geometry={GEO.ico} material={mat(PAL.leafDark)} position={[0.35, 1.35, 0.2]} scale={0.9} castShadow />
-          {seed % 4 === 1 &&
-            [0, 1, 2].map((i) => (
-              <mesh key={i} geometry={GEO.ico} material={mat(PAL.fruit)} position={[Math.cos(i * 2.1) * 0.7, 1.5 + i * 0.15, Math.sin(i * 2.1) * 0.7]} scale={0.18} />
-            ))}
-        </>
-      ) : (
-        <>
-          <mesh geometry={GEO.cone} material={mat(PAL.leafDark)} position={[0, 1.6, 0]} scale={[1.4, 1.4, 1.4]} castShadow />
-          <mesh geometry={GEO.cone} material={mat(PAL.leaf)} position={[0, 2.3, 0]} scale={[1.0, 1.1, 1.0]} castShadow />
-        </>
-      )}
-    </group>
-  )
-}
-
-export function Bush({ p, s = 1, seed = 0 }: { p: [number, number]; s?: number; seed?: number }) {
-  return (
-    <group position={[p[0], 0.25 * s, p[1]]} scale={s}>
-      <mesh geometry={GEO.ico} material={mat(seed % 2 ? PAL.leafLight : PAL.leaf)} scale={0.8} />
-      <mesh geometry={GEO.ico} material={mat(PAL.leafDark)} position={[0.4, -0.05, 0.1]} scale={0.55} />
-      {seed % 3 === 0 && <mesh geometry={GEO.ico} material={mat('#f5d24a')} position={[0, 0.35, 0.25]} scale={0.14} />}
-    </group>
-  )
-}
 
 export function Bench({ p, r = 0 }: { p: [number, number]; r?: number }) {
   return (
@@ -133,28 +99,6 @@ export function Containers() {
       <Container p={[-10.6, 4.2]} c={PAL.brick} r={1.4} />
       <B p={[-7.6, 0.35, 8.4]} s={[0.7, 0.7, 0.7]} c={PAL.woodDark} cast r={0.3} />
       <B p={[-7.0, 0.25, 8.9]} s={[0.5, 0.5, 0.5]} c={PAL.wood} cast r={0.8} />
-    </group>
-  )
-}
-
-/** Deterministic scatter of trees and bushes around the edge. */
-export function Vegetation() {
-  const trees: [number, number][] = [
-    [-12, 0.5], [-11.5, -5], [11.6, 1], [12, -4.5], [-6, 10], [6.6, 10.5], [-3.2, 11.5],
-    [3, 11.8], [-12.4, 3.5], [8, -9.6], [-8.4, -9.4], [11, 9], [-4, 7.6],
-  ]
-  const bushes: [number, number][] = [
-    [-2.2, 1.0], [2.2, 1.0], [-4.6, 9.4], [1.8, 9.6], [9.8, -1.2], [-9.8, -1.2], [-1.8, 12.2],
-    [6.5, 2.6], [-6.6, 2.4], [10.6, 3.6], [-3.4, -8.4], [3.6, -8.2], [7.8, 8.6], [-11, 8],
-  ]
-  return (
-    <group>
-      {trees.map((p, i) => (
-        <Tree key={`t${i}`} p={p} s={0.85 + rand(i) * 0.5} seed={i} />
-      ))}
-      {bushes.map((p, i) => (
-        <Bush key={`b${i}`} p={p} s={0.7 + rand(i + 30) * 0.6} seed={i} />
-      ))}
     </group>
   )
 }

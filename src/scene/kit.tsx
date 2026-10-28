@@ -1,18 +1,42 @@
 import * as THREE from 'three'
 import type { ThreeElements } from '@react-three/fiber'
 
-// Shared low-poly geometries (unit sized; meshes scale them).
+// Shared geometries (unit sized; meshes scale them). Voxel style: every round shape is a
+// block, so props built from cylinders/cones/spheres all come out cubic.
+const unitBox = new THREE.BoxGeometry(1, 1, 1)
 export const GEO = {
-  box: new THREE.BoxGeometry(1, 1, 1),
-  cyl: new THREE.CylinderGeometry(0.5, 0.5, 1, 8),
-  cyl6: new THREE.CylinderGeometry(0.5, 0.5, 1, 6),
-  cone: new THREE.ConeGeometry(0.5, 1, 6),
-  ico: new THREE.IcosahedronGeometry(0.5, 0),
-  ico1: new THREE.IcosahedronGeometry(0.5, 1),
-  dome: new THREE.SphereGeometry(0.5, 8, 4, 0, Math.PI * 2, 0, Math.PI / 2),
-  ring: new THREE.RingGeometry(0.42, 0.5, 24),
+  box: unitBox,
+  cyl: unitBox,
+  cyl6: unitBox,
+  cone: unitBox,
+  ico: unitBox,
+  ico1: unitBox,
+  dome: unitBox,
+  /** Square outline ring (4 segments, rotated so the sides are axis-aligned). */
+  ring: new THREE.RingGeometry(0.42, 0.5, 4, 1, Math.PI / 4),
   plane: new THREE.PlaneGeometry(1, 1),
 }
+
+/** Subtle 16x16 pixel noise, tinted by each material colour, for the blocky look. */
+const pixelNoise = (() => {
+  if (typeof document === 'undefined') return null
+  const canvas = document.createElement('canvas')
+  canvas.width = 16
+  canvas.height = 16
+  const ctx = canvas.getContext('2d')!
+  for (let y = 0; y < 16; y++)
+    for (let x = 0; x < 16; x++) {
+      const v = 226 + Math.floor(rand(x * 16 + y + 5) * 30)
+      ctx.fillStyle = `rgb(${v},${v},${v})`
+      ctx.fillRect(x, y, 1, 1)
+    }
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.magFilter = THREE.NearestFilter
+  tex.minFilter = THREE.NearestFilter
+  tex.generateMipmaps = false
+  tex.colorSpace = THREE.SRGBColorSpace
+  return tex
+})()
 
 // Original warm "studio town" palette.
 export const PAL = {
@@ -52,7 +76,7 @@ const matCache = new Map<string, THREE.MeshStandardMaterial>()
 export function mat(color: string): THREE.MeshStandardMaterial {
   let m = matCache.get(color)
   if (!m) {
-    m = new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.85, metalness: 0.02 })
+    m = new THREE.MeshStandardMaterial({ color, map: pixelNoise, roughness: 0.95, metalness: 0 })
     matCache.set(color, m)
   }
   return m

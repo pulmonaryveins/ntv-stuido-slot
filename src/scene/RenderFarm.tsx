@@ -5,7 +5,8 @@ import { B, C, GEO, GLOW, LED, PAL, mat, rand } from './kit'
 import { TOWER } from './layout'
 
 const SMOKE_POOL = 28
-const CHIMNEY_TOP: [number, number, number] = [TOWER[0] + 1.1, 9.4, TOWER[1] - 0.6]
+/** Top of the voxel chimney built in world.ts. */
+const CHIMNEY_TOP: [number, number, number] = [TOWER[0] + 1.25, 10.1, TOWER[1] - 0.75]
 
 /** Render-farm tower: server LEDs blink, smoke and turbines scale with active renders. */
 export function RenderFarm({ renders, reducedMotion }: { renders: number; reducedMotion: boolean }) {
@@ -13,7 +14,7 @@ export function RenderFarm({ renders, reducedMotion }: { renders: number; reduce
   const leds = useMemo(() => {
     const out: { p: [number, number, number]; m: number }[] = []
     for (let row = 0; row < 6; row++)
-      for (let col = 0; col < 4; col++) out.push({ p: [tx - 0.75 + col * 0.5, 1.2 + row * 0.55, tz + 1.42], m: (row * 4 + col) % 3 })
+      for (let col = 0; col < 4; col++) out.push({ p: [tx - 0.75 + col * 0.5, 1.2 + row * 0.55, tz + 1.56], m: (row * 4 + col) % 3 })
     return out
   }, [tx, tz])
 
@@ -27,30 +28,14 @@ export function RenderFarm({ renders, reducedMotion }: { renders: number; reduce
 
   return (
     <group>
-      {/* tower */}
-      <B p={[tx, 0.3, tz]} s={[3.8, 0.6, 3.4]} c={PAL.stoneDark} />
-      <B p={[tx, 2.6, tz]} s={[2.6, 4.2, 2.8]} c={PAL.brick} cast />
-      <B p={[tx, 5.1, tz]} s={[2.9, 0.3, 3.1]} c={PAL.woodDark} cast />
-      <B p={[tx, 6.4, tz]} s={[2.3, 2.3, 2.4]} c={PAL.plaster} cast />
-      <B p={[tx, 7.65, tz]} s={[2.7, 0.25, 2.8]} c={PAL.tealDark} cast />
-      <mesh geometry={GEO.cone} material={mat(PAL.teal)} position={[tx, 8.4, tz]} rotation={[0, Math.PI / 4, 0]} scale={[3.4, 1.3, 3.4]} castShadow />
-      {/* server bay with LEDs */}
-      <B p={[tx, 2.6, tz + 1.38]} s={[2.2, 3.4, 0.06]} c={PAL.ink} />
+      {/* tower body is voxels (world.ts); these are the live parts on its front face */}
+      <B p={[tx, 2.5, tz + 1.53]} s={[2.2, 3.4, 0.04]} c={PAL.ink} />
       {leds.map((l, i) => (
         <mesh key={i} geometry={GEO.box} material={LED[l.m]} position={l.p} scale={[0.32, 0.08, 0.04]} />
       ))}
-      {/* glowing upper windows */}
-      {[-0.6, 0.6].map((x) => (
-        <mesh key={x} geometry={GEO.box} material={GLOW.window} position={[tx + x, 6.5, tz + 1.21]} scale={[0.6, 0.9, 0.04]} />
+      {[-0.5, 0.5].map((x) => (
+        <mesh key={x} geometry={GEO.box} material={GLOW.window} position={[tx + x, 6, tz + 1.53]} scale={[0.9, 0.9, 0.02]} />
       ))}
-      {/* chimney */}
-      <C p={[CHIMNEY_TOP[0], 7.6, CHIMNEY_TOP[2]]} rad={0.32} h={3.6} c={PAL.brickDark} cast />
-      <C p={[CHIMNEY_TOP[0], 9.45, CHIMNEY_TOP[2]]} rad={0.4} h={0.2} c={PAL.ink} />
-      {/* pipes + generator */}
-      <C p={[tx - 2.2, 0.7, tz + 0.6]} rad={0.5} h={1.4} c={PAL.metal} cast />
-      <B p={[tx - 2.2, 1.5, tz + 0.6]} s={[0.9, 0.2, 0.9]} c={PAL.amber} />
-      <B p={[tx + 2.3, 0.6, tz + 0.4]} s={[1.0, 1.2, 1.4]} c={PAL.tealDark} cast />
-      <B p={[tx + 1.6, 1.0, tz + 0.4]} s={[0.6, 0.12, 0.12]} c={PAL.metalDark} />
       <Smoke renders={renders} reducedMotion={reducedMotion} />
       <Turbine p={[-4.8, -10.6]} renders={renders} reducedMotion={reducedMotion} h={6.5} />
       <Turbine p={[5.0, -10.2]} renders={renders} reducedMotion={reducedMotion} h={5.5} phase={1} />

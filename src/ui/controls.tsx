@@ -6,14 +6,14 @@ import type { Gate } from '../lib/availability'
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 
 const VARIANTS: Record<Variant, string> = {
-  primary: 'bg-accent text-accent-ink hover:brightness-105 border-transparent',
-  secondary: 'bg-surface-2 text-ink border-line hover:border-muted',
-  ghost: 'bg-transparent text-ink border-transparent hover:bg-surface-2',
-  danger: 'bg-transparent text-overdue border-overdue/50 hover:bg-overdue/10',
+  primary: 'px-btn bg-accent text-accent-ink hover:brightness-110',
+  secondary: 'px-btn bg-surface-2 text-ink hover:brightness-105',
+  ghost: 'border-2 border-transparent bg-transparent text-ink hover:border-line hover:bg-surface-2',
+  danger: 'px-btn bg-overdue text-white hover:brightness-110',
 }
 
 export function buttonClass(variant: Variant = 'secondary', extra = '') {
-  return `inline-flex items-center justify-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-sm font-medium transition-colors ${VARIANTS[variant]} ${extra}`
+  return `inline-flex items-center justify-center gap-1.5 px-2.5 py-1 text-sm font-semibold ${VARIANTS[variant]} ${extra}`
 }
 
 export function Button({
@@ -62,7 +62,7 @@ export function GateButton({
         <Tooltip.Portal>
           <Tooltip.Content
             sideOffset={6}
-            className="z-50 max-w-60 rounded-md bg-ink px-2 py-1 text-xs text-bg shadow-lg"
+            className="z-50 max-w-60 border-2 border-line bg-ink px-2 py-1 text-xs text-bg"
           >
             {gate}
             <Tooltip.Arrow className="fill-ink" />
@@ -96,7 +96,7 @@ export function Segmented<T extends string>({
       value={value}
       disabled={disabled}
       onValueChange={(v) => v && onChange(v as T)}
-      className="inline-flex rounded-lg border border-line bg-surface-2 p-0.5"
+      className="inline-flex border-[3px] border-line bg-surface-2 p-0.5"
     >
       {options.map((o) => (
         <ToggleGroup.Item
@@ -105,7 +105,7 @@ export function Segmented<T extends string>({
           title={o.title}
           aria-label={o.title}
           disabled={o.disabled}
-          className="rounded-md px-2 py-1 text-xs font-medium text-muted transition-colors data-[state=on]:bg-surface data-[state=on]:text-ink data-[state=on]:shadow-sm disabled:opacity-40"
+          className="px-2 py-0.5 text-xs font-semibold text-muted data-[state=on]:bg-accent data-[state=on]:text-accent-ink data-[state=on]:shadow-[inset_2px_2px_0_var(--hi),inset_-2px_-2px_0_var(--lo)] disabled:opacity-40"
         >
           {o.label}
         </ToggleGroup.Item>

@@ -6,6 +6,7 @@ import { formatClock, formatDuration } from '../lib/format'
 import { SELECTABLE_STATUSES, STATE_COLORS, STATUS_META } from '../lib/status'
 import { useStudio } from '../store/studio'
 import { Button, GateButton } from './controls'
+import { PixelIcon, type IconName } from './PixelIcon'
 
 export function slotAccent(slot: Slot, view: SlotView): string {
   if (view.kind === 'free') return STATE_COLORS.free
@@ -56,10 +57,10 @@ export function SlotCard({
   return (
     <article
       aria-labelledby={`slot-${slot.id}-title`}
-      className={`relative overflow-hidden rounded-xl border bg-surface p-3 shadow-sm ${pulse ? 'pulse' : ''} ${g.isMine ? 'border-accent' : 'border-line'}`}
+      className={`px-panel relative overflow-hidden p-3 ${pulse ? 'pulse' : ''} ${g.isMine ? 'border-accent' : ''}`}
       style={{ ['--pulse-color' as string]: `${accent}66` }}
     >
-      <span aria-hidden className="absolute inset-y-0 left-0 w-1.5" style={{ background: accent }} />
+      <span aria-hidden className="absolute inset-y-0 left-0 w-2 border-r-[3px] border-line" style={{ background: accent }} />
       <div className="flex items-start gap-2 pl-2">
         <div className="min-w-0 flex-1">
           <h3 id={`slot-${slot.id}-title`} className="text-xs font-semibold uppercase tracking-wide text-muted">
@@ -108,9 +109,9 @@ export function SlotCard({
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={Math.round(view.progress * 100)}
-              className="mt-1 h-1.5 overflow-hidden rounded-full bg-surface-2"
+              className="px-bar mt-1"
             >
-              <div className="h-full rounded-full" style={{ width: `${view.progress * 100}%`, background: accent }} />
+              <span style={{ width: `${view.progress * 100}%`, color: accent }} />
             </div>
             {view.kind === 'rendering' && view.renderRemainingMs !== null && (
               <p className="mt-1 text-rendering">
@@ -149,14 +150,14 @@ export function SlotCard({
               </GateButton>
             ) : (
               <GateButton gate={g.startBreak} onClick={() => void act((c) => c.startBreak(slot.id))}>
-                ☕ Break
+                <PixelIcon name="mug" size={14} /> Break
               </GateButton>
             )}
           </>
         )}
         {g.knock !== 'hidden' && (
           <GateButton gate={g.knock} onClick={() => void act((c) => c.knock(slot.id))}>
-            ✊ Knock
+            <PixelIcon name="door" size={14} /> Knock
           </GateButton>
         )}
         {g.forceRelease !== 'hidden' && (
@@ -190,10 +191,10 @@ export function SlotCard({
 }
 
 function StateChip({ slot, view, accent }: { slot: Slot; view: SlotView; accent: string }) {
-  let icon = '🟢'
+  let icon: IconName = 'block'
   let label = 'Free'
   if (view.kind === 'reserved') {
-    icon = '🎟️'
+    icon = 'ticket'
     label = 'Reserved'
   } else if (slot.status) {
     icon = STATUS_META[slot.status].icon
@@ -202,10 +203,10 @@ function StateChip({ slot, view, accent }: { slot: Slot; view: SlotView; accent:
   }
   return (
     <span
-      className="inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold"
-      style={{ background: `${accent}22`, color: accent }}
+      className="font-pixel inline-flex shrink-0 items-center gap-1 border-2 border-line px-1.5 py-0.5 text-xs font-semibold uppercase text-ink"
+      style={{ background: `${accent}40` }}
     >
-      <span aria-hidden>{icon}</span>
+      <PixelIcon name={icon} size={14} />
       {label}
     </span>
   )
@@ -226,13 +227,13 @@ function StatusSelect({
       <Select.Trigger
         aria-label={disabledReason ? `Change status (unavailable: ${disabledReason})` : 'Change status'}
         title={disabledReason ?? undefined}
-        className="inline-flex items-center gap-1 rounded-lg border border-line bg-surface-2 px-2.5 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-45"
+        className="inline-flex items-center gap-1 border-[3px] border-line bg-surface-2 px-2.5 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-45"
       >
         <Select.Value placeholder="Status" />
         <span aria-hidden>▾</span>
       </Select.Trigger>
       <Select.Portal>
-        <Select.Content position="popper" sideOffset={4} className="z-50 overflow-hidden rounded-lg border border-line bg-surface shadow-xl">
+        <Select.Content position="popper" sideOffset={4} className="z-50 overflow-hidden px-panel">
           <Select.Viewport className="p-1">
             {SELECTABLE_STATUSES.map((st) => (
               <Select.Item
@@ -240,7 +241,7 @@ function StatusSelect({
                 value={st}
                 className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none data-[highlighted]:bg-surface-2"
               >
-                <span aria-hidden>{STATUS_META[st].icon}</span>
+                <PixelIcon name={STATUS_META[st].icon} size={14} />
                 <Select.ItemText>{STATUS_META[st].label}</Select.ItemText>
               </Select.Item>
             ))}
