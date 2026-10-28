@@ -106,13 +106,14 @@ const PAINTERS: Record<string, Painter> = {
     for (let y = 0; y < 16; y++)
       for (let x = 0; x < 16; x++) px(x, y, x === 0 || y === 0 ? '#e1e5ea' : x === 15 || y === 15 ? '#8c939c' : ['#bcc3cb', '#b4bbc4', '#c4cad1'][Math.floor(r(x + y * 16) * 3)]!)
   },
-  carpetBlue: (px, r) => {
+  // Office carpet tiles: warm grey with a seam, two shades laid alternately like real tiles.
+  carpetA: (px, r) => {
     for (let y = 0; y < 16; y++)
-      for (let x = 0; x < 16; x++) px(x, y, x === 0 || y === 0 ? '#4f6177' : ['#5e7290', '#586b88', '#647896', '#6a7e9b'][Math.floor(r(x * 16 + y) * 4)]!)
+      for (let x = 0; x < 16; x++) px(x, y, x === 0 || y === 0 ? '#6c6762' : ['#8d8883', '#87827d', '#938e89'][Math.floor(r(x * 16 + y) * 3)]!)
   },
-  carpetSage: (px, r) => {
+  carpetB: (px, r) => {
     for (let y = 0; y < 16; y++)
-      for (let x = 0; x < 16; x++) px(x, y, x === 0 || y === 0 ? '#5a6e5b' : ['#6f8a6f', '#68826a', '#759276', '#7b977c'][Math.floor(r(x * 16 + y) * 4)]!)
+      for (let x = 0; x < 16; x++) px(x, y, x === 0 || y === 0 ? '#6c6762' : ['#7f7a75', '#7a7570', '#85807b'][Math.floor(r(x * 16 + y) * 3)]!)
   },
   glass: (px) => {
     for (let y = 0; y < 16; y++)
@@ -136,7 +137,7 @@ function tex(name: string) {
 export type BlockType =
   | 'grass' | 'dirt' | 'stone' | 'cobble' | 'planks' | 'planksDark' | 'log' | 'leaves'
   | 'brick' | 'plaster' | 'teal' | 'tealDark' | 'amber' | 'cloud' | 'rock' | 'glass'
-  | 'oak' | 'concrete' | 'terracotta' | 'rack' | 'drywall' | 'metal' | 'carpetBlue' | 'carpetSage'
+  | 'oak' | 'concrete' | 'terracotta' | 'rack' | 'drywall' | 'metal' | 'carpetA' | 'carpetB'
 
 const matCache = new Map<BlockType, THREE.Material | THREE.Material[]>()
 

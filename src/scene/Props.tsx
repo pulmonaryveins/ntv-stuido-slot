@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { B, C, GEO, GLOW, PAL, mat, rand } from './kit'
-import { ARCADE_X, ARCADE_Z, BEANBAGS, COLLAB, KITCHEN, MEETING, PINGPONG, RACKS, ROOM_BACK, ROOM_X, SOFA_X, TV_POS } from './layout'
+import { B, C, GEO, GLOW, NIGHT, PAL, mat, rand } from './kit'
+import { ARCADE_X, ARCADE_Z, BEANBAGS, COLLAB, CUBE_BACK, CUBE_W, KITCHEN, MEETING, PINGPONG, RACKS, ROOM_BACK, ROOM_X, SOFA_X, TV_POS, buildingX } from './layout'
 
 const LEFT_WALL = -ROOM_X
 
@@ -370,6 +370,72 @@ function CollabTable() {
   )
 }
 
+// --- night lighting ----------------------------------------------------------
+
+const CEILING = 5.4
+
+/** Pendant lamp on a cable from the (implied) ceiling; the bulb glows with the night. */
+function Pendant({ x, z, drop = 2.2 }: { x: number; z: number; drop?: number }) {
+  const y = CEILING - drop
+  return (
+    <group position={[x, 0, z]}>
+      <B p={[0, (CEILING + y) / 2, 0]} s={[0.03, CEILING - y, 0.03]} c={PAL.ink} />
+      <B p={[0, y, 0]} s={[0.55, 0.28, 0.55]} c={PAL.ink} />
+      <mesh geometry={GEO.box} material={GLOW.lamp} position={[0, y - 0.15, 0]} scale={[0.4, 0.04, 0.4]} />
+    </group>
+  )
+}
+
+const LIGHT_POOLS: { p: [number, number, number]; k: number }[] = [
+  { p: [buildingX(0), 3.2, CUBE_BACK + 1.4], k: 1 },
+  { p: [buildingX(1), 3.2, CUBE_BACK + 1.4], k: 1 },
+  { p: [COLLAB[0], 3.0, COLLAB[1]], k: 0.9 },
+  { p: [KITCHEN[0], 3.0, KITCHEN[1] + 1.6], k: 0.9 },
+  { p: [MEETING[0], 3.0, MEETING[1]], k: 0.8 },
+  { p: [SOFA_X - 1.5, 2.8, TV_POS[1]], k: 0.8 },
+  { p: [ARCADE_X[1]!, 3.0, (ARCADE_Z + PINGPONG[1]) / 2], k: 0.8 },
+]
+
+/**
+ * Office lighting that switches on at night: pendant fixtures over every work zone plus warm
+ * point lights (no shadows) whose intensity follows the night factor.
+ */
+function OfficeLights() {
+  const lights = useMemo(() => LIGHT_POOLS.map(() => ({ ref: null as THREE.PointLight | null })), [])
+  useFrame(() => {
+    const n = NIGHT.value
+    lights.forEach((l, i) => {
+      if (!l.ref) return
+      l.ref.intensity = n * 32 * LIGHT_POOLS[i]!.k
+      l.ref.visible = n > 0.02
+    })
+  })
+  const desks = [-1, 1].flatMap((side) => [0, 1].map((b) => buildingX(b) + side * (CUBE_W / 2)))
+  return (
+    <group>
+      {desks.map((x) => (
+        <Pendant key={x} x={x} z={CUBE_BACK + 0.9} drop={2.3} />
+      ))}
+      <Pendant x={COLLAB[0] - 1.3} z={COLLAB[1]} />
+      <Pendant x={COLLAB[0] + 1.3} z={COLLAB[1]} />
+      <Pendant x={KITCHEN[0] - 1.5} z={KITCHEN[1] + 0.9} />
+      <Pendant x={KITCHEN[0] + 1.5} z={KITCHEN[1] + 0.9} />
+      <Pendant x={MEETING[0]} z={MEETING[1]} drop={2.5} />
+      {LIGHT_POOLS.map((l, i) => (
+        <pointLight
+          key={i}
+          ref={(r) => void (lights[i]!.ref = r)}
+          position={l.p}
+          color="#ffd7a1"
+          intensity={0}
+          distance={12}
+          decay={2}
+        />
+      ))}
+    </group>
+  )
+}
+
 /** The office furniture by zone, plus wall decor and plants. */
 export function Lounge() {
   return (
@@ -394,6 +460,7 @@ export function Lounge() {
       {PLANTS.map((pl, i) => (
         <Plant key={i} {...pl} />
       ))}
+      <OfficeLights />
       {/* posters: beside the door and the TV, and between the back windows */}
       <Poster p={[LEFT_WALL + 0.06, 2.3, 3.7]} w={1.0} h={1.3} seed={1} side />
       <Poster p={[LEFT_WALL + 0.06, 2.3, 10.7]} w={1.4} h={1.0} seed={2} side />

@@ -90,8 +90,9 @@ export interface DeskSpot {
 /** Desk placement for each slot, derived from account order and slot number. */
 /** Cubicle geometry: back panel along z = CUBE_BACK, open toward +z (the camera). */
 export const CUBE_BACK = -6.0
-export const CUBE_FRONT = -3.2
-export const CUBE_W = 3.8
+// Snapped to the 0.5-unit voxel grid so the carpet tiles line up with the partitions.
+export const CUBE_FRONT = -3
+export const CUBE_W = 4
 
 export function deskSpots(slots: Slot[], accountIds: number[]): Map<number, DeskSpot> {
   const map = new Map<number, DeskSpot>()

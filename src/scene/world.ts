@@ -1,5 +1,5 @@
 import { rand } from './kit'
-import { BUILDING_D, BUILDING_W, BUILDING_Z, DOOR_Z, RACKS, ROOM_BACK, ROOM_FRONT, ROOM_X, buildingX } from './layout'
+import { CUBE_BACK, CUBE_FRONT, CUBE_W, DOOR_Z, RACKS, ROOM_BACK, ROOM_FRONT, ROOM_X, buildingX } from './layout'
 import { VoxelWorld, cell, type BlockType } from './voxel'
 
 const WALL_H = 11 // blocks (5.5 units)
@@ -48,15 +48,18 @@ function room(w: VoxelWorld) {
   for (let j = 0; j < 4; j++) for (let k = dk - 1; k <= dk; k++) w.delete(leftI, j, k)
 }
 
-/** Cubicle pod floor for one Adobe account: carpet tiles in the account colour, dark edge. */
+/**
+ * Carpet under one cubicle pod, exactly the pod's footprint (both cubicles, back panel to the
+ * open front), laid as alternating carpet tiles. The account colour lives on the partitions.
+ */
 function studio(w: VoxelWorld, index: number) {
   const bx = buildingX(index)
-  const i0 = cell(bx - BUILDING_W / 2)
-  const i1 = cell(bx + BUILDING_W / 2 - 0.01)
-  const k0 = cell(BUILDING_Z - BUILDING_D / 2)
-  const k1 = cell(BUILDING_Z + BUILDING_D / 2 - 0.01)
-  const carpet: BlockType = index === 0 ? 'carpetBlue' : 'carpetSage'
-  for (let i = i0; i <= i1; i++) for (let k = k0; k <= k1; k++) w.set(i, -1, k, carpet)
+  const i0 = cell(bx - CUBE_W)
+  const i1 = cell(bx + CUBE_W - 0.01)
+  const k0 = cell(CUBE_BACK)
+  const k1 = cell(CUBE_FRONT - 0.01)
+  for (let i = i0; i <= i1; i++)
+    for (let k = k0; k <= k1; k++) w.set(i, -1, k, (i + k) % 2 === 0 ? 'carpetA' : 'carpetB')
 }
 
 /** Render farm: a row of server racks against the back wall (LEDs, vapor and fans are live meshes). */

@@ -91,6 +91,9 @@ export const GLOW = {
   screenOff: new THREE.MeshStandardMaterial({ color: '#33363f', flatShading: true }),
 }
 
+/** Current night factor (0 day .. 1 night), eased; written by DayNight every frame. */
+export const NIGHT = { value: 0 }
+
 /** Server rack LEDs (blinked by the render farm). */
 export const LED = ['#53e07b', '#ffb547', '#58b7ff'].map(
   (c) => new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 1, flatShading: true }),

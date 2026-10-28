@@ -5,7 +5,7 @@ import * as THREE from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { useStudio, type TimeMode } from '../store/studio'
 import { useNow } from '../ui/useNow'
-import { GLOW } from './kit'
+import { GLOW, NIGHT as NIGHT_FACTOR } from './kit'
 import { deskSpots, type XZ } from './layout'
 import { World } from './Island'
 import { Lounge } from './Props'
@@ -259,6 +259,7 @@ function DayNight({ night }: { night: number }) {
     GLOW.lamp.emissiveIntensity = 0.15 + n * 2.2
     GLOW.bulb.emissiveIntensity = 0.25 + n * 2.4
     GLOW.screen.emissiveIntensity = 0.6 + n * 0.8
+    NIGHT_FACTOR.value = n
     // Windows: bright daylight to deep night blue.
     const glass = glassMaterial()
     glass.color.copy(tmp.set('#ffffff').lerp(new THREE.Color('#24306a'), n))
