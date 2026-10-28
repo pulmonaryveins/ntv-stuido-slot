@@ -116,7 +116,9 @@ users, rate limit, realtime join. Real concurrency is not covered there (single 
 - **3D office:** a voxel office (cutaway room with brick/plaster walls, loft windows that show
   day or night, a door) built from 0.5-unit blocks with procedurally drawn 16x16 textures
   (`src/scene/voxel.tsx`, `src/scene/world.ts`), one instanced mesh per block type.
-  The two studios are rooms inside it; the render farm is a server-rack corner whose LEDs,
+  The two account booths are office rooms inside it (carpet tiles, drywall and glass
+  partitions in aluminium frames, whiteboard, clock, filing cabinet, white desks, black swivel
+  chairs); the render farm is a server-rack corner whose LEDs,
   heat vapor and wall fans scale with active renders.
 - **Lounge for the waiting list:** queued users don't stand in line. By queue position they
   watch TV on the sofa (#1), play arcade (#2), chill in a bean bag (#3), play ping-pong (#4),
@@ -130,7 +132,8 @@ user gets a random but stable one (hash of their id, distinct until all are in u
 file the app uses its built-in blocky avatars. The file is gitignored, so it is not deployed
 unless you add it deliberately; check its licence and add the author credit to the footer before
 doing so. The loader maps the legacy `KHR_materials_pbrSpecularGlossiness` materials so textures
-show, and seats models without leg bones lower behind the desk.
+show, and rigs each character by geometry (legs, arms, head found by position, pivots added at
+hips and shoulders), so they walk with a proper stride and sit with their hips on the seat.
 
 ## Environment variables
 

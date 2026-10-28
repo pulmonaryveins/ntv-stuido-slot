@@ -149,18 +149,64 @@ export interface Limbs {
   armR?: THREE.Object3D
 }
 
-/** Find limb bones/nodes by common naming (e.g. LeftLeg, leg_r, Arm.L) so walking/sitting can animate them. */
-export function findLimbs(root: THREE.Object3D): Limbs {
-  const limbs: Limbs = {}
+export interface Rig {
+  limbs: Limbs
+  /** Hip height in world units (top of the legs), used to put the hips on a seat. */
+  hipY: number
+}
+
+/**
+ * Rig a block character made of separate part meshes (head, body, arms, legs), using
+ * geometry instead of names: legs are the two parts reaching the floor below the hips, arms are
+ * the two outermost remaining parts (the highest part is the head). Each limb is re-parented
+ * under a pivot at its hip or shoulder so rotating it swings from the joint.
+ */
+export function rigLimbs(root: THREE.Object3D): Rig | null {
+  root.updateMatrixWorld(true)
+  const toLocal = root.matrixWorld.clone().invert()
+  const parts: { mesh: THREE.Object3D; box: THREE.Box3 }[] = []
   root.traverse((o) => {
-    const n = o.name.toLowerCase().replace(/[^a-z]/g, '')
-    if (!n) return
-    const left = /^(left|l)(leg|arm)|(leg|arm)(left|l)$/.exec(n)
-    const right = /^(right|r)(leg|arm)|(leg|arm)(right|r)$/.exec(n)
-    const part = (left ?? right)?.slice(1).find((g) => g === 'leg' || g === 'arm')
-    if (!part) return
-    const key = `${part}${left ? 'L' : 'R'}` as keyof Limbs
-    if (!limbs[key]) limbs[key] = o
+    if ((o as THREE.Mesh).isMesh) parts.push({ mesh: o, box: new THREE.Box3().setFromObject(o).applyMatrix4(toLocal) })
   })
-  return limbs
+  if (parts.length < 4) return null
+
+  const all = new THREE.Box3()
+  for (const p of parts) all.union(p.box)
+  const H = all.max.y - all.min.y
+  const cx = (all.min.x + all.max.x) / 2
+  const centre = (b: THREE.Box3) => b.getCenter(new THREE.Vector3())
+
+  const legs = parts
+    .filter((p) => p.box.min.y - all.min.y < 0.12 * H && p.box.max.y - all.min.y < 0.6 * H)
+    .sort((a, b) => centre(a.box).x - centre(b.box).x)
+  if (legs.length < 2) return null
+  const legL = legs[0]!
+  const legR = legs[legs.length - 1]!
+
+  const head = parts.reduce((top, p) => (p.box.max.y > top.box.max.y ? p : top))
+  const rest = parts
+    .filter((p) => !legs.includes(p) && p !== head)
+    .sort((a, b) => Math.abs(centre(b.box).x - cx) - Math.abs(centre(a.box).x - cx))
+  const armA = rest[0]
+  const armB = rest.find((p) => p !== armA && Math.sign(centre(p.box).x - cx) !== Math.sign(centre(armA!.box).x - cx))
+
+  const pivot = (part: { mesh: THREE.Object3D; box: THREE.Box3 }, shoulder: boolean) => {
+    const c = centre(part.box)
+    const joint = new THREE.Vector3(c.x, part.box.max.y - (shoulder ? 0.06 * H : 0), c.z)
+    const g = new THREE.Group()
+    g.position.copy(joint)
+    root.add(g)
+    root.updateMatrixWorld(true)
+    g.attach(part.mesh)
+    return g
+  }
+
+  const limbs: Limbs = { legL: pivot(legL, false), legR: pivot(legR, false) }
+  if (armA && armB) {
+    const [left, right] = centre(armA.box).x < centre(armB.box).x ? [armA, armB] : [armB, armA]
+    limbs.armL = pivot(left, true)
+    limbs.armR = pivot(right, true)
+  }
+  const hipLocal = Math.max(legL.box.max.y, legR.box.max.y) - all.min.y
+  return { limbs, hipY: hipLocal * root.scale.y }
 }

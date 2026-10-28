@@ -6,7 +6,7 @@ import type { SceneEvent } from '../store/studio'
 import { useNow } from '../ui/useNow'
 import { GEO, PAL, hashString, mat, rand } from './kit'
 import { setAnchorPos, useAnchor } from './anchors'
-import { assignCharacters, findLimbs, instantiate } from './Characters'
+import { assignCharacters, instantiate, rigLimbs, type Rig } from './Characters'
 import { EXIT, HUB, cartSpot, loungeSpot, type DeskSpot, type XZ } from './layout'
 
 type Station =
@@ -141,16 +141,19 @@ function Avatar({
   const body = useRef<THREE.Group>(null)
   // Limbs animate as offsets from their rest rotation (GLB bones have their own rest pose).
   const limbs = useRef<Partial<Record<LimbKey, { o: THREE.Object3D; rx: number; rz: number }>>>({})
-  const model = useMemo(() => (template ? instantiate(template) : null), [template])
+  const { model, rig } = useMemo(() => {
+    if (!template) return { model: null, rig: null as Rig | null }
+    const inst = instantiate(template)
+    return { model: inst, rig: rigLimbs(inst) }
+  }, [template])
   useEffect(() => {
     if (!model) return
-    const found = findLimbs(model)
     limbs.current = {}
     for (const k of LIMB_KEYS) {
-      const o = found[k]
+      const o = rig?.limbs[k]
       if (o) limbs.current[k] = { o, rx: o.rotation.x, rz: o.rotation.z }
     }
-  }, [model])
+  }, [model, rig])
   const limbRef = (k: LimbKey) => (o: THREE.Object3D | null) => {
     if (model) return
     if (o) limbs.current[k] = { o, rx: 0, rz: 0 }
@@ -294,7 +297,8 @@ function Avatar({
     if (walking) y += Math.abs(Math.sin(t * 11)) * (model ? 0.09 : 0.05)
     // The blocky avatar's hip sits 0.52 above its root; a model without leg bones cannot bend,
     // so it settles lower (behind the desk / into the sofa) instead.
-    const sitY = model && !limbs.current.legL ? seatY - drop : seatY - 0.52
+    // Hips on the seat: the model's own hip height when rigged, else sink it (no knees to bend).
+    const sitY = model ? (rig ? seatY - rig.hipY : seatY - drop) : seatY - 0.52
     body.current.rotation.x = lean
     // Sway sideways relative to facing (ping-pong footwork).
     const sx = Math.cos(g.rotation.y) * sway
