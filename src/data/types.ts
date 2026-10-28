@@ -57,6 +57,7 @@ export interface StudioActions {
   claimSlot(slotId: number, status: SlotStatus, minutes: number): Promise<Slot>
   releaseSlot(slotId: number): Promise<void>
   adminForceRelease(slotId: number): Promise<void>
+  adminRemoveFromQueue(userId: string): Promise<void>
   extendSlot(slotId: number, minutes: number): Promise<Slot>
   setStatus(slotId: number, status: SlotStatus, renderEta?: string | null): Promise<Slot>
   startBreak(slotId: number): Promise<Slot>

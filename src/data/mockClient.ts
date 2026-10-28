@@ -137,6 +137,7 @@ export class MockStudioClient implements StudioClient {
       claimSlot: (id, status, minutes) => call(() => this.doClaim(userId, id, status, minutes)),
       releaseSlot: (id) => call(() => this.doRelease(userId, id)),
       adminForceRelease: (id) => call(() => this.doForceRelease(userId, id)),
+      adminRemoveFromQueue: (uid) => call(() => this.doRemoveFromQueue(userId, uid)),
       extendSlot: (id, minutes) => call(() => this.doExtend(userId, id, minutes)),
       setStatus: (id, status, eta) => call(() => this.doSetStatus(userId, id, status, eta ?? null)),
       startBreak: (id) => call(() => this.doStartBreak(userId, id)),
@@ -159,6 +160,9 @@ export class MockStudioClient implements StudioClient {
   }
   adminForceRelease(slotId: number) {
     return this.me().adminForceRelease(slotId)
+  }
+  adminRemoveFromQueue(userId: string) {
+    return this.me().adminRemoveFromQueue(userId)
   }
   extendSlot(slotId: number, minutes: number) {
     return this.me().extendSlot(slotId, minutes)
@@ -370,6 +374,13 @@ export class MockStudioClient implements StudioClient {
     const status = s.status
     this.freeSlot(s)
     this.log(slotId, uid, 'force_release', { target_user_id: target, status })
+  }
+
+  private doRemoveFromQueue(uid: string, target: string) {
+    this.requireAdmin(uid)
+    if (!this.removeFromQueue(target)) return
+    for (const s of this.state.slots) if (s.hold_user_id === target) this.clearHold(s)
+    this.log(null, uid, 'queue_remove', { target_user_id: target })
   }
 
   private doExtend(uid: string, slotId: number, minutes: number): Slot {

@@ -2,7 +2,42 @@
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
-@theme {
+:root {
+  --bg: #f4eee4;
+  --surface: #fffdf8;
+  --surface-2: #f8f2e8;
+  --border: #e3d8c6;
+  --text: #2d2a26;
+  --muted: #776d62;
+  --accent: #d9822b;
+  --accent-ink: #ffffff;
+  --ring: #2b7fd9;
+  color-scheme: light;
+}
+
+[data-theme='dark'] {
+  --bg: #15161b;
+  --surface: #1e2027;
+  --surface-2: #262932;
+  --border: #343844;
+  --text: #ece6dc;
+  --muted: #a39b8f;
+  --accent: #f0a04b;
+  --accent-ink: #1b1309;
+  --ring: #7fb6ff;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-line: var(--border);
+  --color-ink: var(--text);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-ring: var(--ring);
   --color-free: #4caf7a;
   --color-reserved: #e2b33c;
   --color-rendering: #2bb3a3;
@@ -13,4 +48,39 @@ html,
 body,
 #root {
   height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@keyframes ss-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--pulse-color, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+.pulse {
+  animation: ss-pulse 1.8s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse {
+    animation: none;
+  }
+  * {
+    transition-duration: 0ms !important;
+  }
 }

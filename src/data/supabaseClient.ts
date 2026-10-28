@@ -122,6 +122,9 @@ export class SupabaseStudioClient implements StudioClient {
   adminForceRelease(slotId: number) {
     return this.rpc<void>(this.db.rpc('admin_force_release', { p_slot_id: slotId }))
   }
+  adminRemoveFromQueue(userId: string) {
+    return this.rpc<void>(this.db.rpc('admin_remove_from_queue', { p_user_id: userId }))
+  }
   extendSlot(slotId: number, minutes: number) {
     return this.rpc<Slot>(this.db.rpc('extend_slot', { p_slot_id: slotId, p_minutes: minutes }))
   }
