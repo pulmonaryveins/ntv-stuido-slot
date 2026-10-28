@@ -7,7 +7,7 @@ import { useNow } from '../ui/useNow'
 import { GEO, PAL, hashString, mat, rand } from './kit'
 import { setAnchorPos, useAnchor } from './anchors'
 import { assignCharacters, findLimbs, instantiate } from './Characters'
-import { EXIT, HUB, cartSpot, queueSpot, type DeskSpot, type XZ } from './layout'
+import { EXIT, HUB, cartSpot, loungeSpot, type DeskSpot, type XZ } from './layout'
 
 type Station =
   | { kind: 'seat'; slotId: number }
@@ -44,7 +44,7 @@ function routeFor(s: Station, spots: Map<number, DeskSpot>): XZ[] {
     case 'cart':
       return [HUB, cartSpot(s.index)]
     case 'queue':
-      return [HUB, queueSpot(s.index)]
+      return [HUB, loungeSpot(s.index).pos]
     case 'gone':
       return [HUB, EXIT]
   }
@@ -223,12 +223,30 @@ function Avatar({
     let y = 0
     let sit = false
     let facing = s.facing
+    // Seat height for sitting; GLB models (no leg bones) sink by `drop` instead of bending.
+    let seatY = 0.66
+    let drop = 0.97
+    let lean = 0
+    let sway = 0
+    const lounge = arrived && station.kind === 'queue' ? loungeSpot(station.index) : null
     if (arrived) {
       if (station.kind === 'seat') {
         sit = true
         facing = 0
-      } else if (station.kind === 'queue') facing = Math.PI / 2
-      else if (station.kind === 'knock') facing = Math.PI
+      } else if (lounge) {
+        facing = lounge.facing
+        if (lounge.pose === 'sit') {
+          sit = true
+          seatY = lounge.seatY
+          drop = 0.55
+        } else if (lounge.pose === 'beanbag') {
+          sit = true
+          seatY = lounge.seatY
+          drop = 0.85
+          lean = -0.28
+        }
+        if (lounge.activity === 'pingpong' && !reducedMotion) sway = Math.sin(t * 2.6) * 0.35
+      } else if (station.kind === 'knock') facing = Math.PI
       else if (station.kind === 'cart') {
         const c = cartSpot(station.index)
         facing = Math.atan2(5.2 - c[0], 6.2 - c[1])
@@ -246,6 +264,21 @@ function Avatar({
       pose.armR = -1.1 + Math.cos(t * 7) * 0.05
     }
     if (arrived && station.kind === 'knock') pose.armR = -2.3 + Math.sin(t * 14) * 0.35
+    if (lounge?.activity === 'game') {
+      // mashing arcade buttons
+      pose.armL = -1.25 + Math.sin(t * 18) * 0.12
+      pose.armR = -1.25 + Math.cos(t * 21) * 0.12
+    } else if (lounge?.activity === 'pingpong') {
+      pose.armR = -0.6 + Math.sin(t * 5.2) * 0.9
+    } else if (lounge?.activity === 'chill') {
+      // hands behind the head
+      armZ = 2.7
+      pose.armL = -0.4
+      pose.armR = -0.4
+    } else if (lounge?.activity === 'tv' && !reducedMotion) {
+      // the odd laugh at the show
+      if (Math.sin(t * 0.7) > 0.93) y += Math.abs(Math.sin(t * 16)) * 0.05
+    }
     if (celebrate && !reducedMotion) {
       y += Math.abs(Math.sin(t * 9)) * 0.35
       armZ = 2.6
@@ -259,10 +292,15 @@ function Avatar({
       limb.o.rotation.z = limb.rz + (k === 'armL' ? armZ : k === 'armR' ? -armZ : 0)
     }
     if (walking) y += Math.abs(Math.sin(t * 11)) * (model ? 0.09 : 0.05)
-    // A model without leg bones cannot bend, so it settles lower behind the desk instead.
-    const sitDrop = model && !limbs.current.legL ? -0.45 : 0
-    // Seat top is at 0.66 and the hip sits 0.52 above the root.
-    g.position.set(s.pos.x, sit ? 0.14 + sitDrop + y : groundY(s.pos.x, s.pos.z) + y, s.pos.z)
+    // The blocky avatar's hip sits 0.52 above its root; a model without leg bones cannot bend,
+    // so it settles lower (behind the desk / into the sofa) instead.
+    const sitY = model && !limbs.current.legL ? seatY - drop : seatY - 0.52
+    body.current.rotation.x = lean
+    // Sway sideways relative to facing (ping-pong footwork).
+    const sx = Math.cos(g.rotation.y) * sway
+    const sz = -Math.sin(g.rotation.y) * sway
+    g.position.set(s.pos.x + sx, sit ? sitY + y : groundY(s.pos.x, s.pos.z) + y, s.pos.z + sz)
+    setAnchorPos(`tag:${profile.id}`, g.position.x, g.position.y + (sit ? 1.9 : 2.0), g.position.z)
     setAnchorPos(`bubble:${profile.id}`, g.position.x, g.position.y + 2.1, g.position.z)
   })
 
@@ -325,6 +363,21 @@ export function activeKnockers(snapshot: Snapshot, events: SceneEvent[], nowPerf
         .map((e) => e.userId!),
     ),
   ]
+}
+
+/** "#n waiting" tag over a user in the lounge (rendered outside the Canvas). */
+export function QueueTag({ userId, position, ready }: { userId: string; position: number; ready: boolean }) {
+  const anchor = useAnchor(`tag:${userId}`, 0, -100, 0)
+  return (
+    <div ref={anchor} className="pointer-events-none absolute left-0 top-0">
+      <div
+        className={`font-pixel whitespace-nowrap border-2 border-line px-1.5 py-0.5 text-[10px] font-semibold uppercase ${ready ? 'pulse bg-reserved text-ink' : 'bg-surface text-ink'}`}
+        style={ready ? { ['--pulse-color' as string]: '#e2b33c' } : undefined}
+      >
+        #{position} {ready ? '· seat ready!' : 'waiting'}
+      </div>
+    </div>
+  )
 }
 
 /** DOM speech bubble that follows a knocking avatar (rendered outside the Canvas). */

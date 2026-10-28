@@ -88,6 +88,19 @@ const PAINTERS: Record<string, Painter> = {
   amber: speckle(['#f0a63a', '#e89c31', '#f5b04a']),
   cloud: speckle(['#ffffff', '#f6f7fb', '#eef0f6']),
   rock: speckle(['#6b6874', '#625f6b', '#75727e']),
+  oak: (px, r) => {
+    for (let y = 0; y < 16; y++)
+      for (let x = 0; x < 16; x++) px(x, y, x % 8 === 7 ? '#a77d52' : ['#ddb685', '#d6ae7c', '#e3be8f'][Math.floor(r(x + y * 16) * 3)]!)
+  },
+  concrete: speckle(['#bdb7ad', '#b4aea4', '#c6c0b6', '#aea89e']),
+  terracotta: speckle(['#c4683f', '#b95f38', '#cf7247']),
+  rack: (px, r) => {
+    for (let y = 0; y < 16; y++)
+      for (let x = 0; x < 16; x++) {
+        const grille = y % 3 === 1 && x > 1 && x < 14
+        px(x, y, x === 0 || x === 15 ? '#4a4d57' : grille ? '#14151a' : ['#2b2d35', '#272930', '#30323a'][Math.floor(r(x * 16 + y) * 3)]!)
+      }
+  },
   glass: (px) => {
     for (let y = 0; y < 16; y++)
       for (let x = 0; x < 16; x++) {
@@ -110,6 +123,7 @@ function tex(name: string) {
 export type BlockType =
   | 'grass' | 'dirt' | 'stone' | 'cobble' | 'planks' | 'planksDark' | 'log' | 'leaves'
   | 'brick' | 'plaster' | 'teal' | 'tealDark' | 'amber' | 'cloud' | 'rock' | 'glass'
+  | 'oak' | 'concrete' | 'terracotta' | 'rack'
 
 const matCache = new Map<BlockType, THREE.Material | THREE.Material[]>()
 
@@ -128,6 +142,11 @@ export function blockMaterial(type: BlockType): THREE.Material | THREE.Material[
   }
   matCache.set(type, m)
   return m
+}
+
+/** The window glass material (its colour is tinted by the day/night cycle). */
+export function glassMaterial(): THREE.MeshStandardMaterial {
+  return blockMaterial('glass') as THREE.MeshStandardMaterial
 }
 
 /** Pixel-noise texture for small props (tinted by the material colour). */

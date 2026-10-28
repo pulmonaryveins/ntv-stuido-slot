@@ -113,9 +113,15 @@ users, rate limit, realtime join. Real concurrency is not covered there (single 
   buttons, segmented progress bars, hand-made 12x12 pixel icons (`src/ui/PixelIcon.tsx`).
   Pixelify Sans (OFL, self-hosted via `@fontsource`) for headings, buttons and labels; body text
   uses the system font for readability.
-- **3D:** the island, studios, render tower and trees are real 0.5-unit voxels with procedurally
-  drawn 16x16 textures (`src/scene/voxel.tsx`, `src/scene/world.ts`), rendered as one instanced
-  mesh per block type with hidden faces culled.
+- **3D office:** a voxel office (cutaway room with brick/plaster walls, loft windows that show
+  day or night, a door) built from 0.5-unit blocks with procedurally drawn 16x16 textures
+  (`src/scene/voxel.tsx`, `src/scene/world.ts`), one instanced mesh per block type.
+  The two studios are rooms inside it; the render farm is a server-rack corner whose LEDs,
+  heat vapor and wall fans scale with active renders.
+- **Lounge for the waiting list:** queued users don't stand in line. By queue position they
+  watch TV on the sofa (#1), play arcade (#2), chill in a bean bag (#3), play ping-pong (#4),
+  and so on, with a "#n waiting" tag (it pulses "seat ready" when their reservation starts).
+  Spots live in `LOUNGE_SPOTS` in `src/scene/layout.ts`.
 
 ### Optional character pack
 

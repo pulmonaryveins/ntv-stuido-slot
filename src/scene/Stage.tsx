@@ -7,11 +7,12 @@ import { useStudio, type TimeMode } from '../store/studio'
 import { useNow } from '../ui/useNow'
 import { GLOW } from './kit'
 import { deskSpots, type XZ } from './layout'
-import { Clouds, World } from './Island'
-import { Containers, Plaza, SolarRows } from './Props'
+import { World } from './Island'
+import { Lounge } from './Props'
+import { glassMaterial } from './voxel'
 import { Building, Desk, DeskPlate } from './Studio'
 import { RenderFarm } from './RenderFarm'
-import { Avatars, Celebrations, Dog, KnockBubble, activeKnockers } from './Avatars'
+import { Avatars, Celebrations, Dog, KnockBubble, QueueTag, activeKnockers } from './Avatars'
 import { useCharacterTemplates } from './Characters'
 import { AnchorProjector } from './anchors'
 
@@ -61,6 +62,7 @@ export default function Stage({ active }: { active: boolean }) {
   const focusSlotId = useStudio((s) => s.focusSlotId)
   const focusSlot = useStudio((s) => s.focusSlot)
   const timeMode = useStudio((s) => s.timeMode)
+  const theme = useStudio((s) => s.theme)
   const sceneEvents = useStudio((s) => s.sceneEvents)
   const reducedMotion = usePrefersReducedMotion()
   const visible = usePageVisible()
@@ -77,10 +79,12 @@ export default function Stage({ active }: { active: boolean }) {
   const focusedName = focused ? snapshot?.profiles.find((p) => p.id === focused.user_id)?.name : undefined
   const focusedAccount = focused ? snapshot?.accounts.find((a) => a.id === focused.account_id)?.label : undefined
 
-  const sky = `linear-gradient(180deg, ${lerpColor('#8fd0ea', '#0d1430', night)} 0%, ${lerpColor('#d9efe9', '#2c2654', night)} 55%, ${lerpColor('#fbe6c2', '#4a3060', night)} 100%)`
+  // Indoor backdrop (the sky only shows through the office windows), dimmer at night.
+  const [top, bottom] = theme === 'dark' ? ['#2a2733', '#17161d'] : ['#e9dfcc', '#cdbfa6']
+  const backdrop = `radial-gradient(120% 90% at 50% 40%, ${lerpColor(top, '#26232f', night * 0.6)} 0%, ${lerpColor(bottom, '#131218', night * 0.6)} 100%)`
 
   return (
-    <div className="absolute inset-0" style={{ background: sky }}>
+    <div className="absolute inset-0" style={{ background: backdrop }}>
       <Canvas
         shadows={{ type: THREE.PCFShadowMap }}
         dpr={[1, 2]}
@@ -104,10 +108,7 @@ export default function Stage({ active }: { active: boolean }) {
         <AnchorProjector />
         <DayNight night={night} />
         <World buildings={snapshot?.accounts.length ?? 2} />
-        <Clouds reducedMotion={reducedMotion} />
-        <Plaza />
-        <SolarRows />
-        <Containers />
+        <Lounge />
         <RenderFarm renders={renders} reducedMotion={reducedMotion} />
         {snapshot && (
           <>
@@ -138,6 +139,17 @@ export default function Stage({ active }: { active: boolean }) {
         })}
         {snapshot &&
           activeKnockers(snapshot, sceneEvents, performance.now()).map((id) => <KnockBubble key={id} userId={id} />)}
+        {snapshot &&
+          [...snapshot.queue]
+            .sort((a, b) => a.joined_at.localeCompare(b.joined_at) || a.id - b.id)
+            .map((q, i) => (
+              <QueueTag
+                key={q.user_id}
+                userId={q.user_id}
+                position={i + 1}
+                ready={snapshot.slots.some((sl) => sl.hold_user_id === q.user_id)}
+              />
+            ))}
       </div>
 
       <div className="pointer-events-none absolute left-2 top-2 flex flex-wrap items-center gap-2">
@@ -170,7 +182,8 @@ function Controls({ focus, reducedMotion }: { focus: XZ | null; reducedMotion: b
   const controls = useRef<OrbitControlsImpl>(null)
   const { camera, size, invalidate } = useThree()
   // Fit the island both ways (it is ~28 units wide and ~24 tall on screen at this angle).
-  const baseZoom = Math.min(size.width / 32, size.height / 25)
+  // Fit the office both ways (about 31 x 27 units on screen at this angle).
+  const baseZoom = Math.min(size.width / 34, size.height / 26)
   const goal = useRef({ target: new THREE.Vector3(), zoom: baseZoom, animating: false })
 
   useEffect(() => {
@@ -241,6 +254,11 @@ function DayNight({ night }: { night: number }) {
     GLOW.lamp.emissiveIntensity = 0.15 + n * 2.2
     GLOW.bulb.emissiveIntensity = 0.25 + n * 2.4
     GLOW.screen.emissiveIntensity = 0.6 + n * 0.8
+    // Windows: bright daylight to deep night blue.
+    const glass = glassMaterial()
+    glass.color.copy(tmp.set('#ffffff').lerp(new THREE.Color('#24306a'), n))
+    glass.emissive.copy(tmp.set('#b9e2ff').lerp(new THREE.Color('#1a2350'), n))
+    glass.emissiveIntensity = THREE.MathUtils.lerp(0.55, 0.3, n)
   })
 
   return (
