@@ -49,6 +49,17 @@ least 8 characters; "Forgot password?" sends a reset link. In **Dashboard → Au
   Vercel URL in production) and add the same to *Redirect URLs* (used by confirmation and reset
   emails).
 
+#### Branded confirmation email
+
+`supabase/templates/confirmation.html` is the styled "Confirm signup" email (used by local
+`supabase start` via `config.toml`). The hosted project does **not** pick it up from `db push`:
+paste it in **Dashboard → Authentication → Emails → Templates → Confirm signup**
+(subject: `Confirm your Studio Slots email`). Keep the `{{ .ConfirmationURL }}` placeholders.
+
+In the app, registering with confirmation on shows a "Check your email" screen with a Resend
+button; following the link signs the user in and shows a welcome toast. Expired or reused links
+show a clear message on the sign-in screen.
+
 ### Admin
 
 The **first account that registers becomes the admin** (migration `open_signup`); everyone after

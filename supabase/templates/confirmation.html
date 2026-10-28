@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <body style="margin:0;padding:0;background:#f4eee4;font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#2d2a26;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4eee4;padding:32px 12px;">
+      <tr>
+        <td align="center">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:480px;background:#fffdf8;border:1px solid #e3d8c6;border-radius:16px;">
+            <tr>
+              <td align="center" style="padding:32px 32px 8px;">
+                <div style="width:44px;height:44px;line-height:44px;border-radius:12px;background:#d9822b;color:#ffffff;font-size:22px;text-align:center;">&#9670;</div>
+                <h1 style="margin:16px 0 0;font-size:22px;line-height:28px;">Welcome to Studio Slots</h1>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:8px 32px 0;font-size:15px;line-height:22px;text-align:center;color:#5c544a;">
+                Confirm your email to finish creating your account. Then you can claim an Adobe seat before you log in.
+              </td>
+            </tr>
+            <tr>
+              <td align="center" style="padding:24px 32px;">
+                <a href="{{ .ConfirmationURL }}" style="display:inline-block;background:#d9822b;color:#ffffff;text-decoration:none;font-weight:600;font-size:15px;padding:12px 28px;border-radius:10px;">Confirm my email</a>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:0 32px 8px;font-size:12px;line-height:18px;text-align:center;color:#776d62;">
+                Button not working? Copy this link into your browser:<br />
+                <a href="{{ .ConfirmationURL }}" style="color:#776d62;word-break:break-all;">{{ .ConfirmationURL }}</a>
+              </td>
+            </tr>
+            <tr>
+              <td style="padding:16px 32px 28px;font-size:12px;line-height:18px;text-align:center;color:#776d62;">
+                Did not sign up? You can ignore this email. Never share your Adobe password with anyone.
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+  </body>
+</html>

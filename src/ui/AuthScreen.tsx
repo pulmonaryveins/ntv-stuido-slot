@@ -1,4 +1,4 @@
-import { useId, useState, type FormEvent, type ReactNode } from 'react'
+import { useEffect, useId, useState, type FormEvent, type ReactNode } from 'react'
 import * as Tabs from '@radix-ui/react-tabs'
 import type { WorkRole } from '../data'
 import { MIN_PASSWORD, useAuth } from '../store/auth'
@@ -98,6 +98,8 @@ export function AuthScreen() {
     setMode(m)
   }
 
+  const pending = useAuth((s) => s.pendingEmail)
+  if (pending) return <CheckEmailScreen email={pending} />
   if (mode === 'forgot') return <ForgotScreen onBack={() => go('signin')} />
 
   return (
@@ -238,6 +240,62 @@ function ForgotScreen({ onBack }: { onBack: () => void }) {
           Back to sign in
         </button>
       </form>
+    </Shell>
+  )
+}
+
+const RESEND_COOLDOWN_S = 60
+
+/** After registering with email confirmation on: tell the user to open the link. */
+function CheckEmailScreen({ email }: { email: string }) {
+  const resend = useAuth((s) => s.resendConfirmation)
+  const cancel = useAuth((s) => s.cancelPending)
+  const [wait, setWait] = useState(RESEND_COOLDOWN_S)
+  const [sent, setSent] = useState(false)
+
+  useEffect(() => {
+    if (wait <= 0) return
+    const t = setTimeout(() => setWait((w) => w - 1), 1000)
+    return () => clearTimeout(t)
+  }, [wait])
+
+  const onResend = async () => {
+    setSent(false)
+    if (await resend()) {
+      setSent(true)
+      setWait(RESEND_COOLDOWN_S)
+    }
+  }
+
+  return (
+    <Shell title="Check your email" subtitle="One more step to finish registering.">
+      <div className="space-y-4 text-center">
+        <span aria-hidden className="mx-auto grid size-14 place-items-center rounded-full bg-accent/15 text-2xl">
+          ✉️
+        </span>
+        <p className="text-sm">
+          We sent a confirmation link to <strong className="break-all">{email}</strong>. Open it on this device to
+          finish, then you are signed in automatically.
+        </p>
+        <p className="text-xs text-muted">Nothing there? Check spam or promotions.</p>
+        {sent && (
+          <p role="status" className="rounded-lg bg-free/10 px-3 py-2 text-sm text-free">
+            Sent again.
+          </p>
+        )}
+        <Messages />
+        <button
+          type="button"
+          onClick={() => void onResend()}
+          disabled={wait > 0}
+          className="w-full rounded-lg border border-line bg-surface-2 px-3 py-2 text-sm font-medium disabled:opacity-50"
+        >
+          {wait > 0 ? `Resend email in ${wait}s` : 'Resend email'}
+        </button>
+        <button type="button" onClick={cancel} className="block w-full text-center text-sm text-muted underline hover:text-ink">
+          Use a different email or sign in
+        </button>
+      </div>
     </Shell>
   )
 }

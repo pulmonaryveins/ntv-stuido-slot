@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import type { AuthError } from '@supabase/supabase-js'
 import { supabase, supabaseConfigured } from '../lib/supabase'
 import type { WorkRole } from '../data'
+import { useStudio } from './studio'
 
 export type AuthStatus = 'loading' | 'signedOut' | 'signedIn' | 'recovery'
 
@@ -15,10 +16,14 @@ interface AuthState {
   error: string | null
   notice: string | null
   busy: boolean
+  /** Email awaiting confirmation after registering (drives the "check your email" screen). */
+  pendingEmail: string | null
 
   signIn(email: string, password: string): Promise<void>
   signUp(input: { name: string; workRole: WorkRole; email: string; password: string }): Promise<void>
   requestReset(email: string): Promise<void>
+  resendConfirmation(): Promise<boolean>
+  cancelPending(): void
   updatePassword(password: string): Promise<void>
   signOut(): Promise<void>
   clearMessages(): void
@@ -41,8 +46,24 @@ export const useAuth = create<AuthState>((set, get) => ({
   error: null,
   notice: null,
   busy: false,
+  pendingEmail: null,
 
   clearMessages: () => set({ error: null, notice: null }),
+
+  cancelPending: () => set({ pendingEmail: null, error: null, notice: null }),
+
+  resendConfirmation: async () => {
+    const email = get().pendingEmail
+    if (!email) return false
+    set({ error: null })
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
+      options: { emailRedirectTo: window.location.origin },
+    })
+    if (error) set({ error: friendly(error) })
+    return !error
+  },
 
   signIn: async (email, password) => {
     set({ busy: true, error: null, notice: null })
@@ -70,10 +91,8 @@ export const useAuth = create<AuthState>((set, get) => ({
       set({ busy: false, error: 'That email already has an account. Sign in instead.' })
       return
     }
-    set({
-      busy: false,
-      notice: data.session ? null : 'Account created. Check your email and click the confirmation link, then sign in.',
-    })
+    // Email confirmation on: no session yet, show the "check your email" screen.
+    set({ busy: false, pendingEmail: data.session ? null : email.trim() })
   },
 
   requestReset: async (email) => {
@@ -105,18 +124,45 @@ export const useAuth = create<AuthState>((set, get) => ({
   },
 }))
 
+/** What the URL says about an email link the user just followed (read before supabase-js strips it). */
+function readLinkResult(): { confirmed: boolean; error: string | null } {
+  if (typeof window === 'undefined') return { confirmed: false, error: null }
+  const params = new URLSearchParams(`${window.location.hash.replace(/^#/, '')}&${window.location.search.replace(/^\?/, '')}`)
+  const type = params.get('type')
+  const errorCode = params.get('error_code')
+  const error = params.get('error_description')
+  if (errorCode || error) {
+    window.history.replaceState(null, '', window.location.pathname)
+    return {
+      confirmed: false,
+      error: errorCode === 'otp_expired'
+        ? 'That email link expired or was already used. Sign in, or register again to get a new one.'
+        : (error ?? 'That email link did not work.').replace(/\+/g, ' '),
+    }
+  }
+  return { confirmed: type === 'signup' || type === 'email', error: null }
+}
+
 let initialised = false
 
 /** Wire Supabase auth events into the store. Call once on app start. */
 export function initAuth() {
   if (initialised || !supabaseConfigured) return
   initialised = true
+  const link = readLinkResult()
+  if (link.error) useAuth.setState({ error: link.error })
+  let welcomePending = link.confirmed
   const apply = (event: string, session: { user: { id: string; email?: string } } | null) => {
     if (event === 'PASSWORD_RECOVERY') {
       useAuth.setState({ status: 'recovery', userId: session?.user.id ?? null, email: session?.user.email ?? null })
       return
     }
+    if (session && welcomePending) {
+      welcomePending = false
+      useStudio.getState().pushToast({ kind: 'info', title: 'Email confirmed', body: 'Welcome to Studio Slots!' })
+    }
     useAuth.setState((s) => ({
+      pendingEmail: session ? null : s.pendingEmail,
       status: session ? (s.status === 'recovery' ? 'recovery' : 'signedIn') : 'signedOut',
       userId: session?.user.id ?? null,
       email: session?.user.email ?? null,
