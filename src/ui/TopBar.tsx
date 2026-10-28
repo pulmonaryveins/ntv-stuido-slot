@@ -9,6 +9,7 @@ export function TopBar() {
   const s = useStudio()
   const me = s.snapshot?.profiles.find((p) => p.id === s.actorId)
   const isAdmin = me?.role === 'admin'
+  const pendingCount = isAdmin ? (s.snapshot?.profiles.filter((p) => !p.active).length ?? 0) : 0
 
   return (
     <header className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-line bg-surface px-3 py-2 sm:px-4">
@@ -62,6 +63,11 @@ export function TopBar() {
           onClick={() => s.setPage(s.page === 'admin' ? 'board' : 'admin')}
         >
           Admin
+          {pendingCount > 0 && (
+            <span className="ml-1 rounded-full bg-reserved px-1.5 text-[10px] font-bold text-ink" aria-label={`${pendingCount} waiting for approval`}>
+              {pendingCount}
+            </span>
+          )}
         </Button>
       )}
 

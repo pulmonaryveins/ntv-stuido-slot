@@ -39,6 +39,7 @@ export type StudioErrorCode =
   | 'slot_free'
   | 'cannot_knock_self'
   | 'knock_rate_limited'
+  | 'rate_limited'
   | 'user_not_found'
   | 'cannot_modify_self'
   | 'unknown'
@@ -58,6 +59,8 @@ export interface StudioActions {
   releaseSlot(slotId: number): Promise<void>
   adminForceRelease(slotId: number): Promise<void>
   adminRemoveFromQueue(userId: string): Promise<void>
+  /** Approve/deactivate a user or change their role. Undefined fields stay unchanged. */
+  adminUpdateProfile(userId: string, changes: { role?: Profile['role']; active?: boolean }): Promise<Profile>
   extendSlot(slotId: number, minutes: number): Promise<Slot>
   setStatus(slotId: number, status: SlotStatus, renderEta?: string | null): Promise<Slot>
   startBreak(slotId: number): Promise<Slot>

@@ -53,6 +53,7 @@ export const ERROR_TEXT: Record<string, string> = {
   slot_free: 'That slot is free.',
   cannot_knock_self: 'You cannot knock on your own slot.',
   knock_rate_limited: 'You knocked recently. Wait 2 minutes between knocks.',
+  rate_limited: 'Too many actions in a minute. Slow down and try again shortly.',
   user_not_found: 'User not found.',
   cannot_modify_self: 'You cannot demote or deactivate yourself.',
   unknown: 'Something went wrong.',

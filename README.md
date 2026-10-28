@@ -60,15 +60,50 @@ In the app, registering with confirmation on shows a "Check your email" screen w
 button; following the link signs the user in and shows a welcome toast. Expired or reused links
 show a clear message on the sign-in screen.
 
-### Admin
+### Admin and approval
 
-The **first account that registers becomes the admin** (migration `open_signup`); everyone after
-is a regular user. Admins can deactivate users (an inactive user sees an "Account inactive"
-screen). To promote someone later:
+The **first account that registers becomes an active admin**. Every account after that can sign
+in but sees a **"Waiting for approval"** screen until an admin approves it in the **Admin** page
+(the Admin button shows a badge with the number waiting). Approved users get in automatically
+without reloading. Admins can also deactivate users (frees their seat, removes them from the
+queue) and change roles. Promote someone by SQL if needed:
 
 ```sql
-update public.profiles set role = 'admin' where id = (select id from auth.users where email = 'you@example.com');
+update public.profiles set role = 'admin', active = true where id = (select id from auth.users where email = 'you@example.com');
 ```
+
+## Security
+
+Enforced in the database, so it holds even if someone calls the API directly:
+
+- **Read-only tables.** Clients can only `SELECT`; all writes go through `SECURITY DEFINER`
+  RPCs (`search_path = ''`) that check the caller. Anonymous callers get nothing.
+- **RLS.** Inactive/pending users see only their own profile. Non-admins never see inactive
+  profiles. Activity is limited to 24 h for non-admins.
+- **Ownership.** Users can only change their own slot; admin RPCs check the admin role;
+  admins cannot demote or deactivate themselves.
+- **Rate limits.** 30 actions per user per minute on every user RPC; knocks 1 per slot per 2 min.
+- **Concurrency.** One advisory lock serialises board changes, plus row locks and unique
+  indexes (one seat and one reservation per user).
+- **Realtime.** The board uses a private channel; only active users may join
+  (policy on `realtime.messages`). Table changes are still filtered by RLS.
+- **Browser.** `vercel.json` sets CSP, frame-ancestors/X-Frame-Options (no clickjacking),
+  nosniff, referrer and permissions policies, HSTS. `npm run preview` serves the same headers.
+- **Secrets.** Only the public anon key is in the client. Never put the `service_role` key or
+  the database password in `.env`/Vercel `VITE_*` vars. No Adobe credentials anywhere.
+
+`npm test` runs the SQL security tests (`supabase/tests/rpc.test.ts`) against every migration
+in an in-process Postgres: direct writes refused, other users' slots, admin-only RPCs, pending
+users, rate limit, realtime join. Real concurrency is not covered there (single connection).
+
+### Dashboard checklist (hosted project)
+
+- **Authentication → Sign In / Providers → Email:** minimum password length **8**.
+- **Authentication → Rate Limits:** keep defaults or lower sign-ups per hour.
+- **Realtime → Settings:** turn off **public channel access** (allow private channels only).
+- **Optional:** Authentication → Attack Protection → enable **CAPTCHA** (Turnstile/hCaptcha)
+  for sign-up; needs a site key in the app (not wired yet).
+- Rotate the **database password** if it was ever pasted anywhere public.
 
 ## Environment variables
 

@@ -15,6 +15,7 @@ const Stage = lazy(() => import('./scene/Stage'))
 /** Auth gate: with Supabase configured, the board only mounts for a signed-in user. */
 export function App() {
   const status = useAuth((s) => s.status)
+  const profileActive = useAuth((s) => s.profileActive)
   const theme = useStudio((s) => s.theme)
 
   useEffect(() => initAuth(), [])
@@ -22,7 +23,11 @@ export function App() {
     document.documentElement.dataset.theme = theme
   }, [theme])
 
-  if (!supabaseConfigured || status === 'signedIn') return <Board />
+  if (!supabaseConfigured) return <Board />
+  if (status === 'signedIn') {
+    if (profileActive === null) return <LoadingScreen />
+    return profileActive ? <Board /> : <InactiveScreen />
+  }
   if (status === 'loading') return <LoadingScreen />
   if (status === 'recovery') return <NewPasswordScreen />
   return <AuthScreen />
@@ -48,10 +53,11 @@ function Board() {
 
   const show3d = view === '3d' && page === 'board'
 
-  // RLS hides everything from deactivated users: profiles come back without their own row.
-  if (supabaseConfigured && userId && (loadError || (snapshot && !snapshot.profiles.some((p) => p.id === userId)))) {
-    return <InactiveScreen />
-  }
+  // Deactivated mid-session: RLS starts hiding the board. Re-check so the gate switches screens.
+  const meInactive = !!snapshot && snapshot.profiles.find((p) => p.id === userId)?.active === false
+  useEffect(() => {
+    if (supabaseConfigured && (loadError || meInactive)) void useAuth.getState().checkProfile()
+  }, [loadError, meInactive])
 
   return (
     <Tooltip.Provider>

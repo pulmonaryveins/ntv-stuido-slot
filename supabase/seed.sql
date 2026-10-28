@@ -46,7 +46,8 @@ begin
     update public.profiles
        set role = u.role::public.app_role,
            work_role = u.work_role::public.work_role,
-           avatar_color = u.color
+           avatar_color = u.color,
+           active = true
      where id = u.id;
   end loop;
 end;

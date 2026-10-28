@@ -340,15 +340,23 @@ export function NewPasswordScreen() {
   )
 }
 
-/** Signed in, but RLS shows nothing: the account was deactivated (or the profile is missing). */
+/** Signed in but not active: new accounts wait for admin approval; deactivated accounts land here too. */
 export function InactiveScreen() {
   const signOut = useAuth((s) => s.signOut)
   const email = useAuth((s) => s.email)
   return (
-    <Shell title="Account inactive" subtitle={email ?? ''}>
-      <p className="text-sm">
-        Your account is deactivated, so the board is hidden. Ask an admin to reactivate it, then sign in again.
-      </p>
+    <Shell title="Waiting for approval" subtitle={email ?? ''}>
+      <div className="space-y-3 text-center">
+        <span aria-hidden className="mx-auto grid size-14 place-items-center rounded-full bg-reserved/15 text-2xl">
+          ⏳
+        </span>
+        <p className="text-sm">
+          An admin needs to approve your account before you can see the board and claim seats.
+        </p>
+        <p role="status" className="text-xs text-muted">
+          This page lets you in automatically once you are approved.
+        </p>
+      </div>
       <button
         type="button"
         onClick={() => void signOut()}

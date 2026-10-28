@@ -2,6 +2,7 @@ import {
   KNOCK_COOLDOWN_MS,
   StudioError,
   type ActivityEntry,
+  type Profile,
   type Slot,
   type SlotStatus,
   type Snapshot,
@@ -138,6 +139,7 @@ export class MockStudioClient implements StudioClient {
       releaseSlot: (id) => call(() => this.doRelease(userId, id)),
       adminForceRelease: (id) => call(() => this.doForceRelease(userId, id)),
       adminRemoveFromQueue: (uid) => call(() => this.doRemoveFromQueue(userId, uid)),
+      adminUpdateProfile: (uid, changes) => call(() => this.doUpdateProfile(userId, uid, changes)),
       extendSlot: (id, minutes) => call(() => this.doExtend(userId, id, minutes)),
       setStatus: (id, status, eta) => call(() => this.doSetStatus(userId, id, status, eta ?? null)),
       startBreak: (id) => call(() => this.doStartBreak(userId, id)),
@@ -163,6 +165,9 @@ export class MockStudioClient implements StudioClient {
   }
   adminRemoveFromQueue(userId: string) {
     return this.me().adminRemoveFromQueue(userId)
+  }
+  adminUpdateProfile(userId: string, changes: { role?: Profile['role']; active?: boolean }) {
+    return this.me().adminUpdateProfile(userId, changes)
   }
   extendSlot(slotId: number, minutes: number) {
     return this.me().extendSlot(slotId, minutes)
@@ -255,6 +260,12 @@ export class MockStudioClient implements StudioClient {
   private requireActive(userId: string) {
     const p = this.profile(userId)
     if (!p || !p.active) fail('not_authorized')
+    // Same limit as the SQL: at most 30 logged actions per user per minute.
+    const now = this.clock.now()
+    const recent = this.state.activity.filter(
+      (a) => a.user_id === userId && now - (toMs(a.created_at) ?? 0) < MINUTE,
+    ).length
+    if (recent >= 30) fail('rate_limited')
   }
 
   private requireAdmin(userId: string) {
@@ -381,6 +392,27 @@ export class MockStudioClient implements StudioClient {
     if (!this.removeFromQueue(target)) return
     for (const s of this.state.slots) if (s.hold_user_id === target) this.clearHold(s)
     this.log(null, uid, 'queue_remove', { target_user_id: target })
+  }
+
+  private doUpdateProfile(uid: string, target: string, changes: { role?: Profile['role']; active?: boolean }): Profile {
+    this.requireAdmin(uid)
+    const p = this.profile(target) ?? fail('user_not_found')
+    if (target === uid && (changes.active === false || changes.role === 'user')) fail('cannot_modify_self')
+    const wasActive = p.active
+    if (changes.role) p.role = changes.role
+    if (changes.active !== undefined) p.active = changes.active
+    this.version++
+    if (wasActive && !p.active) {
+      const seat = this.state.slots.find((s) => s.user_id === target)
+      if (seat) {
+        this.freeSlot(seat)
+        this.log(seat.id, uid, 'force_release', { target_user_id: target, reason: 'deactivated' })
+      }
+      for (const s of this.state.slots) if (s.hold_user_id === target) this.clearHold(s)
+      this.removeFromQueue(target)
+    }
+    this.log(null, uid, 'profile_update', { target_user_id: target, role: p.role, active: p.active })
+    return p
   }
 
   private doExtend(uid: string, slotId: number, minutes: number): Slot {

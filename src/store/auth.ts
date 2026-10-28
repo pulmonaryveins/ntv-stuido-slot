@@ -18,7 +18,10 @@ interface AuthState {
   busy: boolean
   /** Email awaiting confirmation after registering (drives the "check your email" screen). */
   pendingEmail: string | null
+  /** Own profile's `active` flag: null = not checked yet, false = waiting for approval / deactivated. */
+  profileActive: boolean | null
 
+  checkProfile(): Promise<void>
   signIn(email: string, password: string): Promise<void>
   signUp(input: { name: string; workRole: WorkRole; email: string; password: string }): Promise<void>
   requestReset(email: string): Promise<void>
@@ -47,6 +50,15 @@ export const useAuth = create<AuthState>((set, get) => ({
   notice: null,
   busy: false,
   pendingEmail: null,
+  profileActive: null,
+
+  checkProfile: async () => {
+    const userId = get().userId
+    if (!userId) return
+    const { data, error } = await supabase.from('profiles').select('active').eq('id', userId).maybeSingle()
+    if (error) return // network hiccup: keep the last known state
+    set({ profileActive: !!data?.active })
+  },
 
   clearMessages: () => set({ error: null, notice: null }),
 
@@ -144,6 +156,7 @@ function readLinkResult(): { confirmed: boolean; error: string | null } {
 }
 
 let initialised = false
+let approvalPoll: ReturnType<typeof setInterval> | null = null
 
 /** Wire Supabase auth events into the store. Call once on app start. */
 export function initAuth() {
@@ -170,6 +183,19 @@ export function initAuth() {
     }))
   }
   supabase.auth.onAuthStateChange((event, session) => apply(event, session))
+
+  // Check approval on sign-in; while waiting, re-check so approval lets the user in without a reload.
+  useAuth.subscribe((s, prev) => {
+    if (s.status === 'signedIn' && (prev.status !== 'signedIn' || s.userId !== prev.userId)) {
+      void useAuth.getState().checkProfile()
+    }
+    const waiting = s.status === 'signedIn' && s.profileActive === false
+    if (waiting && !approvalPoll) approvalPoll = setInterval(() => void useAuth.getState().checkProfile(), 10_000)
+    if (!waiting && approvalPoll) {
+      clearInterval(approvalPoll)
+      approvalPoll = null
+    }
+  })
   void supabase.auth.getSession().then(({ data }) => {
     if (useAuth.getState().status === 'loading') apply('INITIAL_SESSION', data.session)
   })

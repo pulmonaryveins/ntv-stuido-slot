@@ -2,6 +2,7 @@ import type { PostgrestError, SupabaseClient } from '@supabase/supabase-js'
 import type { Database } from '../types/database'
 import {
   StudioError,
+  type Profile,
   type Slot,
   type SlotStatus,
   type Snapshot,
@@ -14,7 +15,7 @@ const KNOWN_CODES = new Set<string>([
   'not_authorized', 'slot_not_found', 'slot_taken', 'slot_held', 'already_seated',
   'already_queued', 'already_reserved', 'free_slot_available', 'not_your_slot',
   'invalid_minutes', 'invalid_status', 'invalid_render_eta', 'on_break', 'not_on_break',
-  'render_locked', 'slot_free', 'cannot_knock_self', 'knock_rate_limited',
+  'render_locked', 'slot_free', 'cannot_knock_self', 'knock_rate_limited', 'rate_limited',
   'user_not_found', 'cannot_modify_self',
 ])
 
@@ -85,8 +86,10 @@ export class SupabaseStudioClient implements StudioClient {
       }, 80)
     }
 
+    // Private channel: Realtime only lets active users join (policy on realtime.messages).
+    void this.db.realtime.setAuth()
     const channel = this.db
-      .channel('studio-board')
+      .channel('studio-board', { config: { private: true } })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'slots' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'queue' }, refetch)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'activity_log' }, refetch)
@@ -124,6 +127,15 @@ export class SupabaseStudioClient implements StudioClient {
   }
   adminRemoveFromQueue(userId: string) {
     return this.rpc<void>(this.db.rpc('admin_remove_from_queue', { p_user_id: userId }))
+  }
+  adminUpdateProfile(userId: string, changes: { role?: Profile['role']; active?: boolean }) {
+    return this.rpc<Profile>(
+      this.db.rpc('admin_update_profile', {
+        p_user_id: userId,
+        p_role: changes.role ?? null,
+        p_active: changes.active ?? null,
+      }),
+    )
   }
   extendSlot(slotId: number, minutes: number) {
     return this.rpc<Slot>(this.db.rpc('extend_slot', { p_slot_id: slotId, p_minutes: minutes }))

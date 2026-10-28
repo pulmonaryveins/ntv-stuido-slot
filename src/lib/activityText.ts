@@ -52,6 +52,10 @@ export function describeActivity(e: ActivityEntry, snapshot: Snapshot): { icon: 
       return { icon: '✊', text: `${who} knocked on ${target}'s door (${where})` }
     case 'render_done':
       return { icon: '🎉', text: `${target}'s render finished on ${where}` }
+    case 'user_registered':
+      return { icon: '🆕', text: `${who === 'Someone' ? 'A new user' : who} registered${(e.meta as { pending?: boolean })?.pending ? ' (waiting for approval)' : ''}` }
+    case 'profile_update':
+      return { icon: '🛡️', text: `${who} updated ${target}'s account` }
     case 'overdue':
       return { icon: '🔴', text: `${target} is over time on ${where}` }
     default:
