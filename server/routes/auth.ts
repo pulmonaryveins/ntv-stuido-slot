@@ -15,6 +15,8 @@ import { allowAttempt, clearAttempts } from '../limiter.js'
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const WORK_ROLES = new Set(['editor', 'designer', 'motion'])
+/** Windows device name / hostname (all workstations are Windows): letters, digits, dashes, max 15. */
+const DEVICE_NAME_RE = /^[A-Z0-9-]{1,15}$/
 const VERIFIER_KEY = `${PKCE_STORAGE_KEY}-code-verifier`
 
 const str = (v: unknown, max = 320): string | null => (typeof v === 'string' && v.length <= max ? v : null)
@@ -75,20 +77,26 @@ export async function register(request: Request): Promise<Response> {
   const workRole = str(body?.workRole, 20)
   const email = str(body?.email)?.trim().toLowerCase()
   const password = str(body?.password, 72)
-  if (!name || !workRole || !WORK_ROLES.has(workRole) || !email || !EMAIL_RE.test(email)) {
-    return fail('invalid_input', 400, 'Fill in your name, role and a valid email.')
+  const deviceName = str(body?.deviceName, 40)?.trim().toUpperCase()
+  if (!deviceName || !DEVICE_NAME_RE.test(deviceName)) {
+    return fail('invalid_input', 400, 'Enter your device name (Settings › System › About, or hostname): letters, numbers and dashes, max 15.')
+  }
+  // Work role is optional now (defaults to designer in the signup trigger).
+  if (!name || (workRole && !WORK_ROLES.has(workRole)) || !email || !EMAIL_RE.test(email)) {
+    return fail('invalid_input', 400, 'Fill in your name and a valid email.')
   }
   if (!password || password.length < 8) return fail('weak_password', 400, 'Password must be at least 8 characters.')
   if (!allowAttempt(`register:${clientIp(request)}`, 10)) {
     return fail('rate_limited', 429, 'Too many sign-ups from this network. Try again later.')
   }
+  if ((await deviceAvailable(deviceName)) === false) return deviceTaken()
 
   const store = new Map<string, string>()
   const { data, error } = await pkceClient(store).auth.signUp({
     email,
     password,
     options: {
-      data: { name, work_role: workRole },
+      data: { name, ...(workRole ? { work_role: workRole } : {}), device_name: deviceName },
       emailRedirectTo: `${requestOrigin(request)}/api/auth/callback?next=confirmed`,
     },
   })
@@ -102,6 +110,29 @@ export async function register(request: Request): Promise<Response> {
   }
   const verifier = store.get(VERIFIER_KEY)
   return withCookies(json({ pending: true }), [verifier ? await pkceCookie(request, verifier) : undefined])
+}
+
+const deviceTaken = () =>
+  fail('device_taken', 409, 'That device name is already registered to another account. Check the name, or ask an admin.')
+
+/** true/false from the database; null when the check itself failed (sign-up then decides). */
+async function deviceAvailable(name: string): Promise<boolean | null> {
+  const { data, error } = await anonClient().rpc('device_name_available', { p_name: name })
+  if (error) {
+    console.error('[bff] device check failed', error.code, error.message)
+    return null
+  }
+  return data === true
+}
+
+/** POST /api/auth/check-device: is this device name free? (sign-up form, as you type) */
+export async function checkDevice(request: Request): Promise<Response> {
+  const body = await readJson<{ deviceName?: unknown }>(request)
+  const name = str(body?.deviceName, 40)?.trim().toUpperCase()
+  if (!name || !DEVICE_NAME_RE.test(name)) return fail('invalid_input', 400)
+  if (!allowAttempt(`check-device:${clientIp(request)}`, 30)) return fail('rate_limited', 429, 'Too many checks. Wait a minute.')
+  const available = await deviceAvailable(name)
+  return json({ available: available !== false })
 }
 
 /** POST /api/auth/resend: resend the sign-up confirmation email. */

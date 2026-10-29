@@ -15,6 +15,7 @@ const AUTH_ROUTES: Record<string, { method: 'GET' | 'POST'; handler: Handler }> 
   'auth/callback': { method: 'GET', handler: auth.callback },
   'auth/login': { method: 'POST', handler: auth.login },
   'auth/register': { method: 'POST', handler: auth.register },
+  'auth/check-device': { method: 'POST', handler: auth.checkDevice },
   'auth/resend': { method: 'POST', handler: auth.resend },
   'auth/reset': { method: 'POST', handler: auth.reset },
   'auth/password': { method: 'POST', handler: auth.updatePassword },

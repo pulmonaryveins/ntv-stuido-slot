@@ -35,29 +35,34 @@ interface StudioState {
   view: View
   page: Page
   theme: Theme
+  /** The "your device name" dialog (Adobe lists seats by the Windows device name / hostname). */
+  deviceDialog: boolean
   timeMode: TimeMode
   focusSlotId: number | null
   demo: boolean
   speed: Speed
   actorId: string | null
   toasts: Toast[]
+  /** Board actions currently in flight (drives the progress bar). */
+  busy: number
   sceneEvents: SceneEvent[]
   claimFor: number | null
-  renderEtaFor: number | null
   webgl: boolean
   /** The optional character GLB pack is present (avatars use it instead of blocky figures). */
   charactersAvailable: boolean
+  /** Profile pictures rendered from the character pack (null until ready / if unavailable). */
+  portraits: string[] | null
 
   setView(view: View): void
   setPage(page: Page): void
   setTheme(theme: Theme): void
+  openDeviceDialog(open: boolean): void
   setTimeMode(mode: TimeMode): void
   focusSlot(slotId: number | null): void
   setDemo(on: boolean): void
   setSpeed(speed: Speed): void
   setActor(userId: string): void
   openClaim(slotId: number | null): void
-  openRenderEta(slotId: number | null): void
   pushToast(t: Omit<Toast, 'id'>): void
   dismissToast(id: number): void
   /** Run a client action; failures become error toasts. Resolves true on success. */
@@ -102,17 +107,19 @@ export const useStudio = create<StudioState>((set, get) => ({
   view: webgl ? readPref<View>('ss.view', ['3d', 'list'], narrow ? 'list' : '3d') : 'list',
   page: 'board',
   theme: readPref<Theme>('ss.theme', ['light', 'dark'], prefersDark ? 'dark' : 'light'),
+  deviceDialog: false,
   timeMode: readPref<TimeMode>('ss.time', ['auto', 'day', 'night'], 'auto'),
   focusSlotId: null,
   demo: false,
   speed: 1,
   actorId: studioClient.currentUserId(),
   toasts: [],
+  busy: 0,
   sceneEvents: [],
   claimFor: null,
-  renderEtaFor: null,
   webgl,
   charactersAvailable: false,
+  portraits: null,
 
   setView: (view) => {
     if (view === '3d' && !get().webgl) return
@@ -120,6 +127,7 @@ export const useStudio = create<StudioState>((set, get) => ({
     set({ view })
   },
   setPage: (page) => set({ page }),
+  openDeviceDialog: (deviceDialog) => set({ deviceDialog }),
   setTheme: (theme) => {
     writePref('ss.theme', theme)
     set({ theme })
@@ -143,13 +151,13 @@ export const useStudio = create<StudioState>((set, get) => ({
     mockClient?.setActor(userId)
     lastSeenActivity = Math.max(lastSeenActivity, ...(get().snapshot?.activity.map((a) => a.id) ?? [0]))
     warned.clear()
-    set({ actorId: userId, page: 'board', claimFor: null, renderEtaFor: null })
+    set({ actorId: userId, page: 'board', claimFor: null })
   },
   openClaim: (claimFor) => set({ claimFor }),
-  openRenderEta: (renderEtaFor) => set({ renderEtaFor }),
   pushToast: (t) => set((s) => ({ toasts: [...s.toasts.slice(-4), { ...t, id: ++toastSeq }] })),
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   act: async (fn) => {
+    set((s) => ({ busy: s.busy + 1 }))
     try {
       await fn(studioClient)
       return true
@@ -157,6 +165,8 @@ export const useStudio = create<StudioState>((set, get) => ({
       const code = e instanceof StudioError ? e.code : 'unknown'
       get().pushToast({ kind: 'error', title: ERROR_TEXT[code] ?? ERROR_TEXT.unknown! })
       return false
+    } finally {
+      set((s) => ({ busy: Math.max(0, s.busy - 1) }))
     }
   },
 }))
@@ -207,7 +217,7 @@ function onSnapshot(snapshot: Snapshot) {
           pushToast({ kind: 'info', title: 'Reservation expired', body: 'You were removed from the waiting list.' })
           break
         case 'force_release':
-          pushToast({ kind: 'info', title: 'Your slot was released by an admin' })
+          pushToast({ kind: 'info', title: 'An admin ended your session' })
           break
       }
     }
@@ -247,7 +257,14 @@ export function startStudio() {
   fetch('/models/superhero_minecraft_character.glb', { method: 'HEAD' })
     .then((r) => {
       const type = r.headers.get('content-type') ?? ''
-      useStudio.setState({ charactersAvailable: r.ok && !type.includes('text/html') })
+      const ok = r.ok && !type.includes('text/html')
+      useStudio.setState({ charactersAvailable: ok })
+      // Profile pictures: rendered once from the pack in the background (then cached).
+      if (ok)
+        void import('../scene/portraits')
+          .then((m) => m.loadPortraits())
+          .then((portraits) => useStudio.setState({ portraits: portraits.length ? portraits : null }))
+          .catch((e) => console.warn('[studio] portraits unavailable', e))
     })
     .catch(() => {})
 }

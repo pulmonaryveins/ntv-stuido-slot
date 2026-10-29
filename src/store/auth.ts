@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 import { ApiError, api, backendMode } from '../lib/backend'
-import { bffClient, type WorkRole } from '../data'
+import { bffClient } from '../data'
 import { useStudio } from './studio'
 
 export type AuthStatus = 'loading' | 'signedOut' | 'signedIn' | 'recovery'
@@ -18,6 +18,8 @@ interface AuthState {
   email: string | null
   /** Result of the last form submit: error text or an info message to show. */
   error: string | null
+  /** Which register field the error belongs to (shown under that field). */
+  errorField: 'email' | 'device' | null
   notice: string | null
   busy: boolean
   /** Email awaiting confirmation after registering (drives the "check your email" screen). */
@@ -29,7 +31,7 @@ interface AuthState {
   refreshMe(): Promise<void>
   checkProfile(): Promise<void>
   signIn(email: string, password: string): Promise<void>
-  signUp(input: { name: string; workRole: WorkRole; email: string; password: string }): Promise<void>
+  signUp(input: { name: string; deviceName: string; email: string; password: string }): Promise<void>
   requestReset(email: string): Promise<void>
   resendConfirmation(): Promise<boolean>
   cancelPending(): void
@@ -46,6 +48,7 @@ export const useAuth = create<AuthState>((set, get) => ({
   userId: null,
   email: null,
   error: null,
+  errorField: null,
   notice: null,
   busy: false,
   pendingEmail: null,
@@ -76,7 +79,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     if (get().userId) await get().refreshMe()
   },
 
-  clearMessages: () => set({ error: null, notice: null }),
+  clearMessages: () => set({ error: null, errorField: null, notice: null }),
 
   cancelPending: () => set({ pendingEmail: null, error: null, notice: null }),
 
@@ -104,16 +107,21 @@ export const useAuth = create<AuthState>((set, get) => ({
     }
   },
 
-  signUp: async ({ name, workRole, email, password }) => {
-    set({ busy: true, error: null, notice: null })
+  signUp: async ({ name, deviceName, email, password }) => {
+    set({ busy: true, error: null, errorField: null, notice: null })
     try {
       const res = await api<{ signedIn?: boolean; pending?: boolean }>('auth/register', {
-        body: { name, workRole, email, password },
+        body: { name, deviceName, email, password },
       })
       if (res.signedIn) await get().refreshMe()
       set({ busy: false, pendingEmail: res.pending ? email.trim() : null })
     } catch (e) {
-      set({ busy: false, error: message(e) })
+      const code = e instanceof ApiError ? e.code : ''
+      set({
+        busy: false,
+        error: message(e),
+        errorField: code === 'email_taken' ? 'email' : code === 'device_taken' ? 'device' : null,
+      })
     }
   },
 

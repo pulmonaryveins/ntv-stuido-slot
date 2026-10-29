@@ -75,6 +75,17 @@ describe('router security', () => {
     expect(r.status).toBe(400)
   })
 
+  it('register requires a valid Windows device name before contacting Supabase', async () => {
+    const reg = (deviceName?: string) =>
+      handle(req('auth/register', {
+        method: 'POST',
+        csrf: true,
+        body: JSON.stringify({ name: 'A', workRole: 'editor', email: 'a@example.com', password: 'longenough', deviceName }),
+      }))
+    expect((await reg()).status).toBe(400)
+    expect((await reg('not a device name!')).status).toBe(400)
+  })
+
   it('works behind the Vercel rewrite (/api?path=…)', async () => {
     const r = await handle(new Request(`${ORIGIN}/api?path=board`, { headers: { host: 'localhost:5173' } }))
     expect(r.status).toBe(401)
@@ -87,6 +98,7 @@ describe('RPC argument validation', () => {
       p_slot_id: 1,
       p_status: 'editing',
       p_minutes: 60,
+      p_device_name: null,
     })
     expect(validateArgs('claim_slot', { p_slot_id: '1', p_status: 'editing', p_minutes: 60 })).toBeNull()
     expect(validateArgs('claim_slot', { p_slot_id: 1, p_status: 'editing' })).toBeNull()

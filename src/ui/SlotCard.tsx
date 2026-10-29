@@ -1,19 +1,18 @@
-import * as Select from '@radix-ui/react-select'
-import type { Slot, SlotStatus, Snapshot } from '../data'
+import type { Slot, Snapshot } from '../data'
 import { slotGates, nameOf, type Viewer } from '../lib/availability'
 import { deriveSlotView, type SlotView } from '../lib/slotState'
 import { formatClock, formatDuration } from '../lib/format'
-import { SELECTABLE_STATUSES, STATE_COLORS, STATUS_META } from '../lib/status'
+import { STATE_COLORS } from '../lib/status'
 import { useStudio } from '../store/studio'
-import { Button, GateButton } from './controls'
+import { Button, GateButton, Popover } from './controls'
 import { PixelIcon, type IconName } from './PixelIcon'
+import { UserAvatar } from './UserAvatar'
 
-export function slotAccent(slot: Slot, view: SlotView): string {
+export function slotAccent(_slot: Slot, view: SlotView): string {
   if (view.kind === 'free') return STATE_COLORS.free
   if (view.kind === 'reserved') return STATE_COLORS.reserved
   if (view.kind === 'overdue') return STATE_COLORS.overdue
-  if (view.kind === 'rendering') return STATE_COLORS.rendering
-  return slot.status ? STATUS_META[slot.status].color : STATE_COLORS.free
+  return STATE_COLORS.in_use
 }
 
 export function SlotCard({
@@ -29,7 +28,7 @@ export function SlotCard({
 }) {
   const act = useStudio((s) => s.act)
   const openClaim = useStudio((s) => s.openClaim)
-  const openRenderEta = useStudio((s) => s.openRenderEta)
+  const pushToast = useStudio((s) => s.pushToast)
   const focusSlot = useStudio((s) => s.focusSlot)
   const setView = useStudio((s) => s.setView)
   const webgl = useStudio((s) => s.webgl)
@@ -44,20 +43,12 @@ export function SlotCard({
   const disabledReasons = [
     !g.isMine && !slot.user_id && g.claim ? `Claim: ${g.claim}` : null,
     g.knock !== 'hidden' && g.knock ? `Knock: ${g.knock}` : null,
-    g.isMine && g.startBreak && slot.status === 'rendering' ? `Break: ${g.startBreak}` : null,
-    g.isMine && g.status ? `Status: ${g.status}` : null,
   ].filter(Boolean)
-
-  const onStatus = (v: string) => {
-    const status = v as SlotStatus
-    if (status === 'rendering') openRenderEta(slot.id)
-    else void act((c) => c.setStatus(slot.id, status))
-  }
 
   return (
     <article
       aria-labelledby={`slot-${slot.id}-title`}
-      className={`px-panel relative overflow-hidden p-3 ${pulse ? 'pulse' : ''} ${g.isMine ? 'border-accent' : ''}`}
+      className={`px-panel relative flex flex-col overflow-hidden p-3 ${pulse ? 'pulse' : ''} ${g.isMine ? 'border-accent' : ''}`}
       style={{ ['--pulse-color' as string]: `${accent}66` }}
     >
       <span aria-hidden className="absolute inset-y-0 left-0 w-2 border-r-[3px] border-line" style={{ background: accent }} />
@@ -69,7 +60,7 @@ export function SlotCard({
           <p className="truncate text-sm font-semibold">
             {holder ? (
               <>
-                <span aria-hidden className="mr-1.5 inline-block size-2.5 rounded-full align-middle" style={{ background: holder.avatar_color }} />
+                <UserAvatar profile={holder} size={22} className="mr-2 align-middle" />
                 {holder.name}
                 {g.isMine && <span className="ml-1 font-normal text-accent">(you)</span>}
               </>
@@ -88,6 +79,33 @@ export function SlotCard({
 
       <div className="mt-2 pl-2 text-xs text-muted">
         {view.kind === 'free' && <p>Available now</p>}
+        {slot.user_id && (
+          <p className="mb-1 flex items-center gap-1.5">
+            <span>Device</span>
+            <Popover
+              title="Adobe device"
+              trigger={
+                <button type="button" className="px-badge bg-surface-2 px-1.5 font-mono text-ink underline decoration-dotted underline-offset-2 hover:bg-accent hover:text-accent-ink">
+                  {slot.device_name ?? 'unknown'}
+                </button>
+              }
+            >
+              <p>
+                <strong className="font-mono">{slot.device_name ?? 'Unknown device'}</strong> is signed in to Adobe on this seat
+                {holder ? (
+                  <>
+                    {' '}
+                    for <strong>{holder.name}</strong>
+                  </>
+                ) : null}
+                .
+              </p>
+              <p className="mt-2 text-xs">
+                In Adobe&apos;s activated-devices list, this is the computer to sign out when the session ends.
+              </p>
+            </Popover>
+          </p>
+        )}
         {view.kind === 'reserved' && view.holdRemainingMs !== null && (
           <p>
             Hold expires in <strong className="text-ink">{formatDuration(view.holdRemainingMs)}</strong>
@@ -113,23 +131,11 @@ export function SlotCard({
             >
               <span style={{ width: `${view.progress * 100}%`, color: accent }} />
             </div>
-            {view.kind === 'rendering' && view.renderRemainingMs !== null && (
-              <p className="mt-1 text-rendering">
-                Render lock · ETA {formatDuration(view.renderRemainingMs)} ({formatClock(now + view.renderRemainingMs)})
-              </p>
-            )}
-            {slot.status === 'break' && view.breakRemainingMs !== null && (
-              <p className={`mt-1 ${view.breakRemainingMs < 0 ? 'text-overdue' : ''}`}>
-                {view.breakRemainingMs >= 0
-                  ? `Break: seat held ${formatDuration(view.breakRemainingMs)} more`
-                  : `Break over by ${formatDuration(view.breakRemainingMs)}`}
-              </p>
-            )}
           </>
         )}
       </div>
 
-      <div className="mt-3 flex flex-wrap gap-1.5 pl-2">
+      <div className="mt-auto flex flex-wrap gap-1.5 pt-3 pl-2">
         {!slot.user_id && (
           <GateButton gate={g.claim} variant="primary" onClick={() => openClaim(slot.id)}>
             Claim
@@ -137,22 +143,22 @@ export function SlotCard({
         )}
         {g.isMine && (
           <>
-            <Button variant="secondary" onClick={() => void act((c) => c.releaseSlot(slot.id))}>
-              Release
+            <Button
+              variant="secondary"
+              onClick={() =>
+                void act((c) => c.releaseSlot(slot.id)).then(
+                  (ok) =>
+                    ok &&
+                    slot.device_name &&
+                    pushToast({ kind: 'info', title: `Sign out of Adobe on ${slot.device_name}`, body: 'So the seat shows as free in Adobe too.' }),
+                )
+              }
+            >
+              End session
             </Button>
             <GateButton gate={g.extend} onClick={() => void act((c) => c.extendSlot(slot.id, 30))}>
               +30 min
             </GateButton>
-            <StatusSelect slot={slot} disabledReason={g.status} onChange={onStatus} />
-            {slot.status === 'break' ? (
-              <GateButton gate={g.endBreak} onClick={() => void act((c) => c.endBreak(slot.id))}>
-                Back
-              </GateButton>
-            ) : (
-              <GateButton gate={g.startBreak} onClick={() => void act((c) => c.startBreak(slot.id))}>
-                <PixelIcon name="mug" size={14} /> Break
-              </GateButton>
-            )}
           </>
         )}
         {g.knock !== 'hidden' && (
@@ -161,8 +167,22 @@ export function SlotCard({
           </GateButton>
         )}
         {g.forceRelease !== 'hidden' && (
-          <GateButton gate={g.forceRelease} variant="danger" onClick={() => void act((c) => c.adminForceRelease(slot.id))}>
-            Force release
+          <GateButton
+            gate={g.forceRelease}
+            variant="danger"
+            onClick={() =>
+              void act((c) => c.adminForceRelease(slot.id)).then(
+                (ok) =>
+                  ok &&
+                  pushToast({
+                    kind: 'info',
+                    title: slot.device_name ? `Now sign out device ${slot.device_name} in Adobe` : 'Now sign out the device in Adobe',
+                    body: "Use the Adobe account's activated-devices list so the next person can sign in.",
+                  }),
+              )
+            }
+          >
+            Force end
           </GateButton>
         )}
         {webgl && (
@@ -174,7 +194,7 @@ export function SlotCard({
               focusSlot(slot.id)
             }}
           >
-            View
+            View in 3D
           </Button>
         )}
       </div>
@@ -196,10 +216,9 @@ function StateChip({ slot, view, accent }: { slot: Slot; view: SlotView; accent:
   if (view.kind === 'reserved') {
     icon = 'ticket'
     label = 'Reserved'
-  } else if (slot.status) {
-    icon = STATUS_META[slot.status].icon
-    label = STATUS_META[slot.status].label
-    if (view.overdue && slot.status !== 'rendering') label = `${label} · overdue`
+  } else if (slot.user_id) {
+    icon = 'brush'
+    label = view.overdue ? 'In use · overdue' : 'In use'
   }
   return (
     <span
@@ -209,45 +228,5 @@ function StateChip({ slot, view, accent }: { slot: Slot; view: SlotView; accent:
       <PixelIcon name={icon} size={14} />
       {label}
     </span>
-  )
-}
-
-function StatusSelect({
-  slot,
-  disabledReason,
-  onChange,
-}: {
-  slot: Slot
-  disabledReason: string | null
-  onChange: (v: string) => void
-}) {
-  const current = slot.status === 'break' ? undefined : (slot.status ?? undefined)
-  return (
-    <Select.Root value={current} onValueChange={onChange} disabled={!!disabledReason}>
-      <Select.Trigger
-        aria-label={disabledReason ? `Change status (unavailable: ${disabledReason})` : 'Change status'}
-        title={disabledReason ?? undefined}
-        className="inline-flex items-center gap-1 border-[3px] border-line bg-surface-2 px-2.5 py-1.5 text-sm font-medium disabled:cursor-not-allowed disabled:opacity-45"
-      >
-        <Select.Value placeholder="Status" />
-        <span aria-hidden>▾</span>
-      </Select.Trigger>
-      <Select.Portal>
-        <Select.Content position="popper" sideOffset={4} className="z-50 overflow-hidden px-panel">
-          <Select.Viewport className="p-1">
-            {SELECTABLE_STATUSES.map((st) => (
-              <Select.Item
-                key={st}
-                value={st}
-                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none data-[highlighted]:bg-surface-2"
-              >
-                <PixelIcon name={STATUS_META[st].icon} size={14} />
-                <Select.ItemText>{STATUS_META[st].label}</Select.ItemText>
-              </Select.Item>
-            ))}
-          </Select.Viewport>
-        </Select.Content>
-      </Select.Portal>
-    </Select.Root>
   )
 }

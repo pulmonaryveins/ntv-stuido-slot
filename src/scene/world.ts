@@ -29,7 +29,8 @@ function room(w: VoxelWorld) {
     }
 
   // Back wall (k0 - 1) and left wall (i0 - 1): brick base, plaster, dark trim on top.
-  const wallBlock = (j: number): BlockType => (j < 3 ? 'brick' : j < WALL_H - 1 ? 'plaster' : 'planksDark')
+  // Village style: cobblestone footing, oak plank walls, a log beam on top.
+  const wallBlock = (j: number): BlockType => (j < 2 ? 'cobble' : j < WALL_H - 1 ? 'planks' : 'log')
   const backK = k0 - 1
   const leftI = i0 - 1
   for (let j = -3; j < WALL_H; j++) {
@@ -38,13 +39,22 @@ function room(w: VoxelWorld) {
     for (let k = backK; k <= k1; k++) w.set(leftI, j, k, block)
   }
 
+  // Log pillars every few blocks (timber frame), and at the corners.
+  for (let j = 0; j < WALL_H; j++) {
+    for (let i = leftI; i <= i1; i += 8) w.set(i, j, backK, 'log')
+    for (let k = backK; k <= k1; k += 8) w.set(leftI, j, k, 'log')
+    w.set(i1, j, backK, 'log')
+    w.set(leftI, j, k1, 'log')
+  }
+
   // High loft windows (above the studio rooms) on the back wall, tall ones on the left wall.
-  for (const [a, b] of [[-26, -19], [-14, -9], [9, 14], [19, 26]] as const) w.fill(a, b, 6, 9, backK, backK, 'glass')
-  for (const [a, b] of [[-22, -16], [-10, -4]] as const) w.fill(leftI, leftI, 4, 8, a, b, 'glass')
+  // Windows at eye level (1.5-3.5 units), placed between the pod signs and clear of the kitchen shelf.
+  for (const [a, b] of [[-12, -9], [0, 4]] as const) w.fill(a, b, 3, 6, backK, backK, 'glass')
+  for (const [a, b] of [[-22, -18], [-12, -8]] as const) w.fill(leftI, leftI, 3, 6, a, b, 'glass')
 
   // Door opening in the left wall with a dark frame.
   const dk = cell(DOOR_Z)
-  w.fill(leftI, leftI, 0, 4, dk - 1, dk + 1, 'planksDark')
+  w.fill(leftI, leftI, 0, 4, dk - 1, dk + 1, 'log')
   for (let j = 0; j < 4; j++) for (let k = dk - 1; k <= dk; k++) w.delete(leftI, j, k)
 }
 

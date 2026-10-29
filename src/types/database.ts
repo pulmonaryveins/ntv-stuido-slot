@@ -16,6 +16,8 @@ type SlotRow = {
   hold_until: string | null
   prev_status: Database['public']['Enums']['slot_status'] | null
   break_until: string | null
+  /** Adobe device name of the computer using this seat (null when free). */
+  device_name: string | null
 }
 
 type ProfileRow = {
@@ -25,6 +27,8 @@ type ProfileRow = {
   work_role: Database['public']['Enums']['work_role']
   active: boolean
   avatar_color: string
+  /** The user's remembered Adobe device name. */
+  device_name: string | null
   created_at: string
 }
 
@@ -64,9 +68,11 @@ export type Database = {
           p_slot_id: number
           p_status: Database['public']['Enums']['slot_status']
           p_minutes: number
+          p_device_name?: string | null
         }
         Returns: SlotRow
       }
+      set_slot_device: { Args: { p_slot_id: number; p_device_name: string }; Returns: SlotRow }
       release_slot: { Args: { p_slot_id: number }; Returns: undefined }
       extend_slot: { Args: { p_slot_id: number; p_minutes: number }; Returns: SlotRow }
       set_status: {
@@ -82,11 +88,13 @@ export type Database = {
       join_queue: { Args: Record<PropertyKey, never>; Returns: undefined }
       leave_queue: { Args: Record<PropertyKey, never>; Returns: undefined }
       knock: { Args: { p_slot_id: number }; Returns: undefined }
+      device_name_available: { Args: { p_name: string }; Returns: boolean }
       update_my_profile: {
         Args: {
           p_name?: string | null
           p_work_role?: Database['public']['Enums']['work_role'] | null
           p_avatar_color?: string | null
+          p_device_name?: string | null
         }
         Returns: ProfileRow
       }
@@ -102,6 +110,7 @@ export type Database = {
         }
         Returns: ProfileRow
       }
+      admin_delete_user: { Args: { p_user_id: string }; Returns: undefined }
       admin_update_account: { Args: { p_account_id: number; p_label: string }; Returns: AccountRow }
       admin_update_settings: {
         Args: {

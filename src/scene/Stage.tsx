@@ -9,11 +9,12 @@ import { GLOW, NIGHT as NIGHT_FACTOR } from './kit'
 import { deskSpots, type XZ } from './layout'
 import { World } from './Island'
 import { Lounge } from './Props'
+import { Zones } from './Zones'
 import { CITY_GLOW, Outside } from './Outside'
 import { glassMaterial } from './voxel'
 import { Building, Desk, DeskPlate } from './Studio'
 import { RenderFarm } from './RenderFarm'
-import { Avatars, Celebrations, Dog, KnockBubble, QueueTag, activeKnockers } from './Avatars'
+import { Avatars, Celebrations, Dog, KnockBubble, QueueTag, YouMarker, activeKnockers } from './Avatars'
 import { useCharacterTemplates } from './Characters'
 import { AnchorProjector } from './anchors'
 
@@ -90,7 +91,7 @@ export default function Stage({ active }: { active: boolean }) {
     <div className="absolute inset-0" style={{ background: backdrop }}>
       <Canvas
         shadows={{ type: THREE.PCFShadowMap }}
-        dpr={[1, 2]}
+        dpr={[1, 1.5]}
         frameloop={active && visible ? 'always' : 'never'}
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
         onPointerMissed={() => (document.body.style.cursor = '')}
@@ -112,6 +113,7 @@ export default function Stage({ active }: { active: boolean }) {
         <DayNight night={night} />
         <World buildings={snapshot?.accounts.length ?? 2} />
         <Lounge />
+        <Zones />
         <Outside reducedMotion={reducedMotion} />
         <RenderFarm renders={renders} reducedMotion={reducedMotion} />
         {snapshot && (
@@ -141,6 +143,10 @@ export default function Stage({ active }: { active: boolean }) {
             </div>
           ) : null
         })}
+        {/* Seated users are marked on their desk plate instead, so the badge never covers it. */}
+        {snapshot && actorId && snapshot.profiles.some((p) => p.id === actorId && p.active) && !snapshot.slots.some((sl) => sl.user_id === actorId) && (
+          <YouMarker userId={actorId} name={snapshot.profiles.find((p) => p.id === actorId)!.name} />
+        )}
         {snapshot &&
           activeKnockers(snapshot, sceneEvents, performance.now()).map((id) => <KnockBubble key={id} userId={id} />)}
         {snapshot &&

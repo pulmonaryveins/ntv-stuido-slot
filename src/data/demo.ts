@@ -1,7 +1,7 @@
 import type { MockStudioClient } from './mockClient'
-import type { SlotStatus, StudioActions } from './types'
-import { CLAIM_STATUSES, DEFAULT_STATUS_FOR_ROLE } from '../lib/status'
-import { MINUTE, toIso, toMs } from '../lib/format'
+import type { StudioActions } from './types'
+import { DEFAULT_STATUS_FOR_ROLE } from '../lib/status'
+import { MINUTE, toMs } from '../lib/format'
 
 type Move = { weight: number; run: () => Promise<unknown> }
 
@@ -48,11 +48,6 @@ export function startDemo(client: MockStudioClient, getActorId: () => string | n
 
       const owner = as(s.user_id)
       const left = (toMs(s.expected_until) ?? now) - now
-      const breakLeft = (toMs(s.break_until) ?? now) - now
-      if (s.status === 'break') {
-        if (breakLeft < 8 * MINUTE) moves.push({ weight: breakLeft < 0 ? 4 : 1, run: () => owner.endBreak(s.id) })
-        continue
-      }
       if (left <= 0) {
         moves.push({ weight: 1.5, run: () => owner.releaseSlot(s.id) })
         moves.push({ weight: 1, run: () => owner.extendSlot(s.id, 30) })
@@ -61,15 +56,6 @@ export function startDemo(client: MockStudioClient, getActorId: () => string | n
         moves.push({ weight: 0.8, run: () => owner.releaseSlot(s.id) })
       }
       if (s.status !== 'rendering') {
-        moves.push({ weight: 0.25, run: () => owner.startBreak(s.id) })
-        moves.push({
-          weight: 0.25,
-          run: () => owner.setStatus(s.id, 'rendering', toIso(now + pick([12, 20, 30, 40]) * MINUTE)),
-        })
-        moves.push({
-          weight: 0.15,
-          run: () => owner.setStatus(s.id, pick(CLAIM_STATUSES.filter((x) => x !== s.status)) as SlotStatus),
-        })
         // Someone waiting knocks on a long-running or overdue seat.
         const knocker = [...queued].filter((u) => u !== me)
         if (knocker.length && (left <= 0 || chance(0.2))) {

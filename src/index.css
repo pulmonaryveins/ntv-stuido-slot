@@ -1,44 +1,62 @@
 @import '@fontsource/pixelify-sans/400.css';
 @import '@fontsource/pixelify-sans/600.css';
+@import '@fontsource-variable/noto-sans';
+@import '@fontsource-variable/jetbrains-mono';
 @import 'tailwindcss';
+
+/* Minecraft pixel font (public/fonts/Minecraft.ttf). Pixelify Sans stands in until the file is there. */
+@font-face {
+  font-family: 'Minecraft';
+  src: url('/fonts/Minecraft.ttf') format('truetype');
+  font-display: swap;
+}
 
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
-/* Voxel / pixel-art theme: square corners, hard outlines, bevelled blocks. */
+/* Blocky game-UI theme: flat stone-grey surfaces, black outlines, chunky green buttons with a lip. */
 :root {
-  --bg: #cdb88f; /* sandstone */
-  --bg-2: #c4ae84;
-  --surface: #f0e3c4; /* birch plank */
-  --surface-2: #e2d0a8;
-  --border: #2b2117; /* block outline */
-  --text: #241b12;
-  --muted: #6b5940;
-  --accent: #4f9a37; /* grass green */
+  --bg: #f4f4f4;
+  --bg-2: #ebebeb;
+  --surface: #ffffff;
+  --surface-2: #e6e8eb;
+  --border: #1e1e1f;
+  --text: #1e1e1f;
+  --muted: #5c5d61;
+  --accent: #3c8527; /* grass green */
   --accent-ink: #ffffff;
-  --ring: #2f7bd9;
-  --hi: rgba(255, 255, 255, 0.55);
-  --lo: rgba(60, 40, 15, 0.28);
+  --ring: var(--accent);
+  --hi: rgba(255, 255, 255, 0.75);
+  --lo: rgba(0, 0, 0, 0.16);
+  --lip: rgba(0, 0, 0, 0.32);
   color-scheme: light;
 }
 
-[data-theme='dark'] {
-  --bg: #1d1c22; /* deep slate */
-  --bg-2: #232229;
-  --surface: #2c2a33;
-  --surface-2: #383640;
-  --border: #0b0a0e;
-  --text: #f1ebdc;
-  --muted: #aea595;
-  --accent: #65b843;
-  --accent-ink: #0c1907;
-  --ring: #7fb6ff;
-  --hi: rgba(255, 255, 255, 0.12);
-  --lo: rgba(0, 0, 0, 0.45);
+/* Dark tokens: the dark theme, plus always-dark areas (header, sign-in side panel). */
+[data-theme='dark'],
+.on-dark {
+  --bg: #1e1e1f;
+  --bg-2: #1a1a1b;
+  --surface: #313233;
+  --surface-2: #48494a;
+  --border: #000000;
+  --text: #ffffff;
+  --muted: #b1b2b5;
+  --accent: #3c8527;
+  --accent-ink: #ffffff;
+  --ring: #6cc349;
+  --hi: rgba(255, 255, 255, 0.14);
+  --lo: rgba(0, 0, 0, 0.4);
+  --lip: rgba(0, 0, 0, 0.45);
   color-scheme: dark;
+}
+.on-dark {
+  color: var(--text);
 }
 
 @theme {
-  --font-pixel: 'Pixelify Sans', ui-monospace, monospace;
+  --font-pixel: 'Minecraft', 'Pixelify Sans', ui-monospace, monospace;
+  --font-sans: 'Noto Sans Variable', ui-sans-serif, system-ui, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Mono', monospace;
   --radius-xs: 0px;
   --radius-sm: 0px;
   --radius-md: 0px;
@@ -69,15 +87,18 @@ html,
 body,
 #root {
   height: 100%;
+  /* The app scrolls inside its own panels; the page itself never scrolls (stray overflow from
+     3D labels would otherwise drag the whole layout up). */
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
 body {
   color: var(--text);
-  font-family: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  /* faint block grid */
+  font-family: var(--font-sans);
+  font-feature-settings: 'tnum' 0;
+  line-height: 1.45;
   background-color: var(--bg);
-  background-image: conic-gradient(var(--bg-2) 25%, transparent 0 50%, var(--bg-2) 0 75%, transparent 0);
-  background-size: 32px 32px;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -92,6 +113,19 @@ legend,
 [role='tab'] {
   font-family: var(--font-pixel);
   letter-spacing: 0.04em;
+  /* The Minecraft font has one weight: never fake a bold (it smears the pixels). */
+  font-weight: 400;
+  font-synthesis: none;
+}
+/* Pixel fonts are crisp at whole multiples of their grid; 16px is the Minecraft font's native size. */
+.px-btn {
+  font-size: 1rem;
+  line-height: 1.1;
+}
+/* Clock times and counts line up in columns. */
+.tabular-nums,
+time {
+  font-variant-numeric: tabular-nums;
 }
 h2,
 h3,
@@ -102,35 +136,81 @@ legend,
   text-transform: uppercase;
 }
 
+/* Block-style scrollbars: square thumb with a bevel, inset track. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--muted) transparent;
+}
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: var(--surface-2);
+  box-shadow: inset 2px 2px 0 var(--lo);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border: 2px solid var(--border);
+  box-shadow:
+    inset 2px 2px 0 var(--hi),
+    inset -2px -2px 0 var(--lo);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
+::-webkit-scrollbar-thumb:active {
+  background: var(--accent);
+  box-shadow: inset 2px 2px 0 var(--lo);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+::-webkit-scrollbar-button {
+  display: none;
+}
+/* Chromium uses the ::-webkit rules above when scrollbar-color is not set on the element. */
+@supports selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: auto;
+    scrollbar-color: auto;
+  }
+}
+
 :focus-visible {
   outline: 3px solid var(--ring);
   outline-offset: 2px;
 }
-
-@layer components {
-/* A bevelled block panel. */
-.px-panel {
-  background: var(--surface);
-  border: 3px solid var(--border);
-  box-shadow:
-    inset 3px 3px 0 var(--hi),
-    inset -3px -3px 0 var(--lo),
-    3px 3px 0 rgba(0, 0, 0, 0.18);
+/* Inputs inside a bordered wrapper: the wrapper's green border is the focus ring. */
+.no-ring:focus,
+.no-ring:focus-visible {
+  outline: none;
 }
 
-/* A pressable block button. */
+@layer components {
+/* A flat card: thin black outline and a 2px top highlight. */
+.px-panel {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  box-shadow: inset 0 2px 0 var(--hi);
+}
+
+/* A chunky pressable button: dark bottom lip, light top edge; presses down on click. */
 .px-btn {
-  border: 3px solid var(--border);
+  border: 2px solid var(--border);
   box-shadow:
-    inset 2px 2px 0 var(--hi),
-    inset -2px -3px 0 var(--lo);
-  transition: none;
+    inset 0 -4px 0 var(--lip),
+    inset 0 2px 0 rgba(255, 255, 255, 0.28);
+  transition: filter 80ms;
+}
+.px-btn:not([aria-disabled='true']):not(:disabled):hover {
+  filter: brightness(1.12);
 }
 .px-btn:not([aria-disabled='true']):not(:disabled):active {
   transform: translateY(2px);
   box-shadow:
-    inset -2px -2px 0 var(--hi),
-    inset 2px 3px 0 var(--lo);
+    inset 0 -2px 0 var(--lip),
+    inset 0 2px 0 rgba(0, 0, 0, 0.2);
 }
 
 }
@@ -153,6 +233,140 @@ legend,
   image-rendering: pixelated;
 }
 
+/* "You" marker bobbing over the current user's character. */
+@keyframes ss-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+.ss-bob {
+  animation: ss-bob 1s steps(2, jump-none) infinite;
+}
+
+/* Tooltips and popovers pop in with a short stepped scale. */
+@keyframes ss-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.ss-pop {
+  transform-origin: var(--radix-tooltip-content-transform-origin, var(--radix-popover-content-transform-origin));
+  animation: ss-pop 120ms steps(3, end);
+}
+
+/* Pixel spinner: each block lights up in turn (stepped, no easing). */
+@keyframes ss-spin-cell {
+  0%,
+  12.5% {
+    opacity: 1;
+  }
+  12.6%,
+  100% {
+    opacity: 0.22;
+  }
+}
+.ss-spinner-cell {
+  opacity: 0.22;
+  animation: ss-spin-cell 800ms steps(1) infinite;
+}
+
+/* Hopping grass blocks: rise in steps, land, wait for the others. */
+@keyframes ss-hop {
+  0%,
+  45%,
+  100% {
+    transform: translateY(0);
+  }
+  15% {
+    transform: translateY(-14px);
+  }
+  25% {
+    transform: translateY(-18px);
+  }
+  35% {
+    transform: translateY(-10px);
+  }
+}
+@keyframes ss-hop-shadow {
+  0%,
+  45%,
+  100% {
+    transform: scaleX(1);
+    opacity: 0.4;
+  }
+  25% {
+    transform: scaleX(0.5);
+    opacity: 0.15;
+  }
+}
+.ss-hop {
+  animation: ss-hop 1.2s steps(3, end) infinite;
+  animation-delay: var(--d, 0ms);
+}
+.ss-hop-shadow {
+  animation: ss-hop-shadow 1.2s steps(3, end) infinite;
+  animation-delay: var(--d, 0ms);
+}
+/* "Loading..." with dots that count up. */
+.ss-dots::after {
+  content: '';
+  display: inline-block;
+  width: 1.5em;
+  text-align: left;
+  animation: ss-dots 1.2s steps(1, end) infinite;
+}
+@keyframes ss-dots {
+  0% {
+    content: '';
+  }
+  25% {
+    content: '.';
+  }
+  50% {
+    content: '..';
+  }
+  75% {
+    content: '...';
+  }
+}
+
+/* Indeterminate progress: a block bar sliding across in chunky steps. */
+@keyframes ss-progress {
+  from {
+    left: -33%;
+  }
+  to {
+    left: 100%;
+  }
+}
+.ss-progress {
+  animation: ss-progress 900ms steps(12) infinite;
+}
+
+/* Loading placeholder blocks. */
+@keyframes ss-shimmer {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+.ss-skeleton {
+  background: var(--surface-2);
+  animation: ss-shimmer 1.2s steps(4) infinite;
+}
+
 @keyframes ss-pulse {
   0%,
   100% {
@@ -170,8 +384,17 @@ legend,
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pulse {
+  .pulse,
+  .ss-progress,
+  .ss-skeleton,
+  .ss-hop,
+  .ss-hop-shadow,
+  .ss-bob,
+  .ss-dots::after {
     animation: none;
+  }
+  .ss-spinner-cell {
+    animation-duration: 2.4s;
   }
   * {
     transition-duration: 0ms !important;

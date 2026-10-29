@@ -76,11 +76,11 @@ function client(db: PGlite) {
   return { as, code, su }
 }
 
-async function signUp(db: PGlite, id: string, email: string, name: string) {
+async function signUp(db: PGlite, id: string, email: string, name: string, extra: Record<string, string> = {}) {
   await db.query(
     `insert into auth.users (instance_id, id, aud, role, email, raw_user_meta_data, created_at, updated_at)
      values ('00000000-0000-0000-0000-000000000000', $1, 'authenticated', 'authenticated', $2, $3, now(), now())`,
-    [id, email, JSON.stringify({ name, work_role: 'editor' })],
+    [id, email, JSON.stringify({ name, work_role: 'editor', ...extra })],
   )
 }
 
@@ -210,6 +210,18 @@ describe('security (seeded)', () => {
     expect(await c.code(ADMIN, `select admin_update_profile('${ADMIN}', p_role => 'user')`)).toBe('cannot_modify_self')
   })
 
+  it('admin can delete a user: seat freed, auth user + profile gone, history kept', async () => {
+    await c.as(OMAR, `select claim_slot(2, 'editing', 60)`)
+    expect(await c.code(JUN, `select admin_delete_user('${OMAR}')`)).toBe('not_authorized')
+    expect(await c.code(ADMIN, `select admin_delete_user('${ADMIN}')`)).toBe('cannot_modify_self')
+    expect(await c.code(ADMIN, `select admin_delete_user('${OMAR}')`)).toBe('ok')
+    expect(await c.su(`select user_id from slots where id = 2`)).toEqual([{ user_id: null }])
+    expect(await c.su(`select count(*)::int n from profiles where id = '${OMAR}'`)).toEqual([{ n: 0 }])
+    expect(await c.su(`select count(*)::int n from auth.users where id = '${OMAR}'`)).toEqual([{ n: 0 }])
+    expect(await c.su(`select count(*)::int n from activity_log where action = 'user_deleted'`)).toEqual([{ n: 1 }])
+    expect(await c.code(ADMIN, `select admin_delete_user('${OMAR}')`)).toBe('user_not_found')
+  })
+
   it('realtime: only active users can join the private board channel', async () => {
     // Realtime authorizes a join by checking that the policy lets the user see rows while
     // realtime.topic() is the requested channel.
@@ -243,6 +255,15 @@ describe('registration + approval (empty project)', () => {
     expect(await c.su(`select count(*)::int n from activity_log where action = 'user_registered' and user_id = '${SECOND}'`)).toEqual([{ n: 1 }])
   })
 
+  it('sign-up stores the Windows PC name (upper-cased); a malformed one is ignored, not fatal', async () => {
+    const PC_OK = '10000000-0000-4000-a000-000000000003'
+    const PC_BAD = '10000000-0000-4000-a000-000000000004'
+    await signUp(db, PC_OK, 'pc@example.com', 'Pc', { device_name: ' h7 ' })
+    await signUp(db, PC_BAD, 'bad@example.com', 'Bad', { device_name: 'way too long pc name!' })
+    expect(await c.su(`select device_name from profiles where id = '${PC_OK}'`)).toEqual([{ device_name: 'H7' }])
+    expect(await c.su(`select device_name from profiles where id = '${PC_BAD}'`)).toEqual([{ device_name: null }])
+  })
+
   it('pending user sees only their own profile, no board, cannot act', async () => {
     expect(await c.as(SECOND, `select id from profiles`)).toEqual([{ id: SECOND }])
     expect(await c.as(SECOND, `select count(*)::int n from slots`)).toEqual([{ n: 0 }])
@@ -251,9 +272,76 @@ describe('registration + approval (empty project)', () => {
   })
 
   it('admin sees the pending user and approves them', async () => {
-    expect(await c.as(FIRST, `select count(*)::int n from profiles where not active`)).toEqual([{ n: 1 }])
+    expect(await c.as(FIRST, `select count(*)::int n from profiles where not active`)).toEqual([{ n: 3 }])
     expect(await c.code(FIRST, `select admin_update_profile('${SECOND}', p_active => true)`)).toBe('ok')
     expect(await c.as(SECOND, `select count(*)::int n from slots`)).toEqual([{ n: 4 }])
-    expect(await c.code(SECOND, `select claim_slot(1, 'editing', 30)`)).toBe('ok')
+    // A brand-new user has no remembered device yet.
+    expect(await c.code(SECOND, `select claim_slot(1, 'editing', 30)`)).toBe('device_required')
+    expect(await c.code(SECOND, `select claim_slot(1, 'editing', 30, 'NEW-PC')`)).toBe('ok')
+  })
+})
+
+describe('Adobe device names (seeded)', () => {
+  let db: PGlite
+  let c: ReturnType<typeof client>
+  beforeAll(async () => {
+    db = await freshDb(true)
+    c = client(db)
+  })
+
+  it('device names are unique across accounts (case-insensitive)', async () => {
+    expect(await c.as(null, `select device_name_available('pc-jun') ok`)).toEqual([{ ok: false }])
+    expect(await c.as(null, `select device_name_available('FREE-PC') ok`)).toEqual([{ ok: true }])
+    expect(await c.code(SAM, `select update_my_profile(p_device_name => 'pc-jun')`)).toBe('device_taken')
+    expect(await c.code(SAM, `select update_my_profile(p_device_name => 'PC-SAM')`)).toBe('ok') // own name is fine
+    expect(await c.code(null, `update profiles set device_name = 'PC-JUN' where id = '${SAM}'`)).toMatch(/permission denied/)
+    await expect(db.query(`update profiles set device_name = 'pc-jun' where id = '${SAM}'`)).rejects.toThrow(/unique/)
+  })
+
+  it("claiming at a colleague's PC works but does not take their device name", async () => {
+    expect(await c.code(PRIYA, `select claim_slot(3, 'editing', 60, 'PC-THEO')`)).toBe('ok')
+    expect(await c.su(`select device_name from slots where id = 3`)).toEqual([{ device_name: 'PC-THEO' }])
+    expect(await c.su(`select device_name from profiles where id = '${PRIYA}'`)).toEqual([{ device_name: 'PC-PRIYA' }])
+    await c.as(PRIYA, `select release_slot(3)`)
+  })
+
+  it('claim records the device (remembered profile device by default)', async () => {
+    expect(await c.code(MAYA, `select claim_slot(1, 'editing', 60)`)).toBe('ok')
+    expect(await c.su(`select device_name from slots where id = 1`)).toEqual([{ device_name: 'PC-MAYA' }])
+  })
+
+  it('a newly given device is stored on the seat and remembered on the profile', async () => {
+    expect(await c.code(JUN, `select claim_slot(2, 'designing', 60, '  D4  ')`)).toBe('ok')
+    expect(await c.su(`select device_name from slots where id = 2`)).toEqual([{ device_name: 'D4' }])
+    expect(await c.su(`select device_name from profiles where id = '${JUN}'`)).toEqual([{ device_name: 'D4' }])
+  })
+
+  it('one device holds at most one seat per account; other accounts are fine', async () => {
+    expect(await c.code(SAM, `select claim_slot(3, 'motion', 60, 'd4')`)).toBe('ok') // account 2
+    expect(await c.code(LENA, `select release_slot(4)`)).toBe('not_your_slot')
+    await c.as(SAM, `select release_slot(3)`)
+    // same account as Jun's D4 seat (account 1, slot 2): Maya's seat cannot switch to it
+    expect(await c.code(MAYA, `select set_slot_device(1, 'D4')`)).toBe('device_in_use')
+  })
+
+  it('rejects malformed names', async () => {
+    expect(await c.code(LENA, `select claim_slot(4, 'editing', 30, '<script>')`)).toBe('invalid_device')
+    expect(await c.code(LENA, `select update_my_profile(p_device_name => repeat('x', 61))`)).toBe('invalid_device')
+    // typical macOS name with an apostrophe is fine
+    expect(await c.code(LENA, `select update_my_profile(p_device_name => 'Lena''s MacBook Pro')`)).toBe('ok')
+  })
+
+  it('only the seat holder or an admin can correct the device', async () => {
+    expect(await c.code(LENA, `select set_slot_device(1, 'C1')`)).toBe('not_your_slot')
+    expect(await c.code(MAYA, `select set_slot_device(1, 'C1')`)).toBe('ok')
+    expect(await c.code(ADMIN, `select set_slot_device(1, 'C2')`)).toBe('ok')
+    expect(await c.su(`select device_name from slots where id = 1`)).toEqual([{ device_name: 'C2' }])
+    // the admin's correction does not overwrite Maya's remembered device
+    expect(await c.su(`select device_name from profiles where id = '${MAYA}'`)).toEqual([{ device_name: 'C1' }])
+  })
+
+  it('releasing clears the seat device', async () => {
+    expect(await c.code(MAYA, `select release_slot(1)`)).toBe('ok')
+    expect(await c.su(`select device_name from slots where id = 1`)).toEqual([{ device_name: null }])
   })
 })

@@ -2,8 +2,6 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js'
 import type { GLTFLoader, GLTFParser } from 'three-stdlib'
-import type { Profile } from '../data'
-import { hashString } from './kit'
 
 /** Optional character pack. The app only loads it at runtime; it is gitignored, not bundled. */
 export const CHARACTER_URL = '/models/superhero_minecraft_character.glb'
@@ -46,7 +44,7 @@ interface SpecGlossDef {
   glossinessFactor?: number
 }
 
-const extendLoader = (loader: GLTFLoader) => {
+export const extendLoader = (loader: GLTFLoader) => {
   // drei's loader is three-stdlib's GLTFLoader; its plugin type is looser than this class.
   loader.register((parser) => new SpecGlossFallback(parser) as never)
 }
@@ -64,7 +62,7 @@ const hasMesh = (o: THREE.Object3D) => {
  * treat each child that contains meshes as one character. Each template is re-centred so its
  * feet sit at the origin, and scaled to avatar height.
  */
-function extractTemplates(scene: THREE.Object3D): THREE.Object3D[] {
+export function extractTemplates(scene: THREE.Object3D): THREE.Object3D[] {
   scene.updateMatrixWorld(true)
   let root = scene
   while (root.children.length === 1 && !(root.children[0] as THREE.Mesh).isMesh) root = root.children[0]!
@@ -122,25 +120,8 @@ export function instantiate(template: THREE.Object3D): THREE.Object3D {
   return cloneSkinned(template)
 }
 
-/**
- * Random-but-stable character per user. Users are processed in sign-up order so a new user
- * never changes anyone else's character; each takes their hash-picked character, or the next
- * free one, and characters only repeat once every one is in use.
- */
-export function assignCharacters(profiles: Profile[], count: number): Map<string, number> {
-  const out = new Map<string, number>()
-  if (count === 0) return out
-  const used = new Set<number>()
-  const ordered = [...profiles].sort((a, b) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id))
-  for (const p of ordered) {
-    if (used.size >= count) used.clear()
-    let idx = hashString(p.id) % count
-    while (used.has(idx)) idx = (idx + 1) % count
-    used.add(idx)
-    out.set(p.id, idx)
-  }
-  return out
-}
+/** Shared with the UI (profile pictures), so it lives outside the 3D code. */
+export { assignCharacters } from '../lib/characters'
 
 export interface Limbs {
   legL?: THREE.Object3D

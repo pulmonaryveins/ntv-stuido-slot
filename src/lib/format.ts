@@ -23,9 +23,11 @@ export function formatDuration(ms: number): string {
 }
 
 /** "14:05" in local time. */
+/** 12-hour clock: "4:10 PM". */
 export function formatClock(ms: number): string {
   const d = new Date(ms)
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  const h = d.getHours()
+  return `${h % 12 || 12}:${String(d.getMinutes()).padStart(2, '0')} ${h < 12 ? 'AM' : 'PM'}`
 }
 
 /** "just now", "4m ago", "2h ago", "3d ago". */

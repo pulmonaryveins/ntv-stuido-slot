@@ -43,15 +43,44 @@ const v = new THREE.Vector3()
 export function AnchorProjector() {
   const { camera, size } = useThree()
   useFrame(() => {
-    for (const a of anchors.values()) {
-      if (!a.el) continue
+    // Pass 1 reads only (projection + element sizes); pass 2 writes. Interleaving reads and
+    // writes would force a layout per overlay per frame.
+    type Item = { a: Anchor; el: HTMLElement; desk: boolean; on: boolean; x: number; y: number; w: number; h: number }
+    const items: Item[] = []
+    for (const [key, a] of anchors) {
+      const el = a.el
+      if (!el) continue
       v.copy(a.pos).project(camera)
-      const onScreen = v.z > -1 && v.z < 1 && Math.abs(v.x) < 1.2 && Math.abs(v.y) < 1.2
-      a.el.style.visibility = onScreen ? 'visible' : 'hidden'
-      if (!onScreen) continue
-      const x = ((v.x + 1) / 2) * size.width
-      const y = ((1 - v.y) / 2) * size.height
-      a.el.style.transform = `translate(${x}px, ${y}px) translate(${a.shiftX * 100}%, -100%)`
+      const on = v.z > -1 && v.z < 1 && Math.abs(v.x) < 1.2 && Math.abs(v.y) < 1.2
+      const w = el.offsetWidth
+      const h = el.offsetHeight
+      const px = ((v.x + 1) / 2) * size.width
+      const py = ((1 - v.y) / 2) * size.height
+      items.push({ a, el, desk: key.startsWith('desk:'), on, x: px + a.shiftX * w, y: py - h, w, h })
+    }
+
+    // Desk plates: nearer (lower) plates keep their place; plates behind move up until clear.
+    const plates = items.filter((i) => i.desk && i.on).sort((p, q) => q.y - p.y)
+    const GAP = 4
+    for (let i = 0; i < plates.length; i++) {
+      const p = plates[i]!
+      for (let pass = 0; pass < plates.length; pass++) {
+        let moved = false
+        for (let j = 0; j < i; j++) {
+          const q = plates[j]!
+          if (p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h + GAP && q.y < p.y + p.h + GAP) {
+            p.y = q.y - p.h - GAP
+            moved = true
+          }
+        }
+        if (!moved) break
+      }
+    }
+
+    for (const i of items) {
+      const vis = i.on ? 'visible' : 'hidden'
+      if (i.el.style.visibility !== vis) i.el.style.visibility = vis
+      if (i.on) i.el.style.transform = `translate(${Math.round(i.x)}px, ${Math.round(i.y)}px)`
     }
   })
   return null

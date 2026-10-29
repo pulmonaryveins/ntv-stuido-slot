@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { forwardRef, useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Profile, Snapshot } from '../data'
@@ -7,13 +7,14 @@ import { useNow } from '../ui/useNow'
 import { GEO, PAL, hashString, mat, rand } from './kit'
 import { setAnchorPos, useAnchor } from './anchors'
 import { assignCharacters, instantiate, rigLimbs, type Rig } from './Characters'
-import { EXIT, HUB, KITCHEN_ROUTE, cartSpot, loungeSpot, type DeskSpot, type XZ } from './layout'
+import { EXIT, HUB, KITCHEN_ROUTE, LOUNGE_SPOTS, IDLE_SPOTS, cartSpot, idleSpot, loungeSpot, type DeskSpot, type XZ } from './layout'
 
 type Station =
   | { kind: 'seat'; slotId: number }
   | { kind: 'cart'; slotId: number; index: number }
   | { kind: 'queue'; index: number }
   | { kind: 'knock'; slotId: number }
+  | { kind: 'idle'; choice: number }
   | { kind: 'gone' }
 
 const LIMB_KEYS = ['legL', 'legR', 'armL', 'armR'] as const
@@ -45,6 +46,8 @@ function routeFor(s: Station, spots: Map<number, DeskSpot>): XZ[] {
       return [...KITCHEN_ROUTE, cartSpot(s.index)]
     case 'queue':
       return [HUB, loungeSpot(s.index).pos]
+    case 'idle':
+      return idleSpot(s.choice).route
     case 'gone':
       return [HUB, EXIT]
   }
@@ -62,6 +65,21 @@ function computeStations(snapshot: Snapshot, events: SceneEvent[], nowPerf: numb
   queue.forEach((q, i) => {
     if (!map.has(q.user_id)) map.set(q.user_id, { kind: 'queue', index: i })
   })
+  // Everyone else who is active is around the office, not leaving: meetings, collab table, server racks.
+  // They change what they are doing every so often (own rhythm per person), never sharing a spot.
+  const taken = new Set<number>(queue.map((_, i) => i % LOUNGE_SPOTS.length))
+  const total = IDLE_SPOTS.length
+  const nowMs = Date.now()
+  for (const p of [...snapshot.profiles].sort((a, b) => a.id.localeCompare(b.id))) {
+    if (!p.active || map.has(p.id)) continue
+    const h = hashString(p.id)
+    const period = 14000 + (h % 9000)
+    const round = Math.floor((nowMs + h * 7) / period)
+    let c = hashString(`${p.id}:${round}`) % total
+    for (let n = 0; n < total && taken.has(c); n++) c = (c + 1) % total
+    taken.add(c)
+    map.set(p.id, { kind: 'idle', choice: c })
+  }
   for (const e of events) {
     if (e.kind !== 'knock' || !e.userId || nowPerf - e.at > KNOCK_MS) continue
     const current = map.get(e.userId)
@@ -87,7 +105,7 @@ export function Avatars({
   /** Character models from the optional GLB pack; null = built-in blocky avatars. */
   templates?: THREE.Object3D[] | null
 }) {
-  useNow(500) // re-evaluate knock/celebration windows
+  useNow(1000) // re-evaluate knock/celebration windows
   const assignment = useMemo(
     () => (templates ? assignCharacters(snapshot.profiles, templates.length) : null),
     [templates, snapshot.profiles],
@@ -231,13 +249,16 @@ function Avatar({
     let drop = 0.97
     let lean = 0
     let sway = 0
-    const lounge = arrived && station.kind === 'queue' ? loungeSpot(station.index) : null
+    const idle = arrived && station.kind === 'idle' ? idleSpot(station.choice) : null
+    const lounge = arrived ? (station.kind === 'queue' ? loungeSpot(station.index) : idle) : null
     if (arrived) {
       if (station.kind === 'seat') {
         sit = true
         facing = Math.PI // facing the cubicle desk and monitors
       } else if (lounge) {
         facing = lounge.facing
+        // wanderers glance around
+        if (lounge.activity === 'roam' && !reducedMotion) facing += Math.sin(t * 0.5) * 0.9
         if (lounge.pose === 'sit') {
           sit = true
           seatY = lounge.seatY
@@ -279,6 +300,18 @@ function Avatar({
       // the odd laugh at the show
       if (Math.sin(t * 0.7) > 0.93) y += Math.abs(Math.sin(t * 16)) * 0.05
     }
+    if (lounge && !reducedMotion) {
+      const ph = rand(hashString(profile.id)) * 10
+      if (lounge.activity === 'meeting') {
+        pose.armR = -0.9 + Math.sin(t * 3.1 + ph) * 0.5 // talking with their hands
+        if (Math.sin(t * 0.4 + ph) > 0.3) pose.armL = -0.7 + Math.cos(t * 2.3) * 0.4
+      } else if (lounge.activity === 'collab') {
+        pose.armL = -1.2 + Math.sin(t * 15 + ph) * 0.1 // typing at the shared table
+        pose.armR = -1.2 + Math.cos(t * 17) * 0.1
+      } else if (lounge.activity === 'racks') {
+        pose.armR = -1.4 + Math.sin(t * 2) * 0.15
+      }
+    }
     if (celebrate && !reducedMotion) {
       y += Math.abs(Math.sin(t * 9)) * 0.35
       armZ = 2.6
@@ -303,20 +336,38 @@ function Avatar({
     g.position.set(s.pos.x + sx, sit ? sitY + y : groundY(s.pos.x, s.pos.z) + y, s.pos.z + sz)
     setAnchorPos(`tag:${profile.id}`, g.position.x, g.position.y + (sit ? 1.9 : 2.0), g.position.z)
     setAnchorPos(`bubble:${profile.id}`, g.position.x, g.position.y + 2.1, g.position.z)
+    if (isMe) {
+      // Above the waiting-list tag so the two never overlap.
+      setAnchorPos(`me:${profile.id}`, g.position.x, g.position.y + (sit ? 2.35 : 2.5), g.position.z)
+      const r = ring.current
+      if (r) {
+        r.visible = g.visible
+        r.position.set(g.position.x, 0.04, g.position.z)
+        // Stepped "breathing" so it reads as a game marker, not a smooth glow.
+        const k = reducedMotion ? 1 : 1 + Math.round((Math.sin(clock.elapsedTime * 3) + 1) * 1.5) * 0.06
+        r.scale.set(k, 1, k)
+      }
+    }
   })
+  const ring = useRef<THREE.Group>(null)
+  const marker = isMe ? <YouRing ref={ring} /> : null
 
   if (model) {
     return (
-      <group ref={root}>
-        <group ref={body}>
-          <primitive object={model} />
-          {isMe && <mesh geometry={GEO.cone} material={mat(PAL.amber)} position={[0, 2.0, 0]} scale={0.22} />}
+      <>
+        {marker}
+        <group ref={root}>
+          <group ref={body}>
+            <primitive object={model} />
+          </group>
         </group>
-      </group>
+      </>
     )
   }
 
   return (
+    <>
+    {marker}
     <group ref={root}>
       <group ref={body} scale={0.95}>
         {/* legs (pivot at hip) */}
@@ -348,9 +399,9 @@ function Avatar({
         <mesh geometry={GEO.box} material={mat(PAL.ink)} position={[0.12, 1.38, 0.226]} scale={[0.045, 0.06, 0.01]} />
         <mesh geometry={GEO.box} material={mat('#b97b55')} position={[0, 1.26, 0.222]} scale={[0.12, 0.03, 0.01]} />
         <RoleProp role={profile.work_role} color={profile.avatar_color} />
-        {isMe && <mesh geometry={GEO.cone} material={mat(PAL.amber)} position={[0, 2.0, 0]} rotation={[Math.PI, 0, 0]} scale={[0.22, 0.22, 0.22]} />}
       </group>
     </group>
+    </>
   )
 }
 
@@ -364,6 +415,55 @@ export function activeKnockers(snapshot: Snapshot, events: SceneEvent[], nowPerf
         .map((e) => e.userId!),
     ),
   ]
+}
+
+const RING_MAT = new THREE.MeshBasicMaterial({ color: '#6cc349', transparent: true, opacity: 0.9, depthWrite: false })
+const RING_CORNER = new THREE.MeshBasicMaterial({ color: '#ffffff', depthWrite: false })
+
+/** Square block outline on the floor under the current user (follows them, see useFrame). */
+const YouRing = forwardRef<THREE.Group>(function YouRing(_props, ref) {
+  const S = 0.5 // half size
+  const T = 0.07 // bar thickness
+  return (
+    <group ref={ref} renderOrder={2}>
+      {[
+        [0, -S, 2 * S, T],
+        [0, S, 2 * S, T],
+        [-S, 0, T, 2 * S],
+        [S, 0, T, 2 * S],
+      ].map(([x, z, w, d], i) => (
+        <mesh key={i} geometry={GEO.box} material={RING_MAT} position={[x!, 0, z!]} scale={[w!, 0.02, d!]} />
+      ))}
+      {[
+        [-S, -S],
+        [S, -S],
+        [-S, S],
+        [S, S],
+      ].map(([x, z], i) => (
+        <mesh key={`c${i}`} geometry={GEO.box} material={RING_CORNER} position={[x!, 0.005, z!]} scale={[0.14, 0.025, 0.14]} />
+      ))}
+    </group>
+  )
+})
+
+/** "You" badge with a bouncing pixel arrow over the current user (rendered outside the Canvas). */
+export function YouMarker({ userId, name }: { userId: string; name: string }) {
+  const anchor = useAnchor(`me:${userId}`, 0, -100, 0)
+  return (
+    <div ref={anchor} className="pointer-events-none absolute left-0 top-0">
+      <div className="ss-bob flex flex-col items-center">
+        <div className="on-dark flex items-center gap-1.5 border-2 border-black bg-accent px-2 py-0.5 shadow-[inset_0_-3px_0_rgba(0,0,0,0.35),inset_0_2px_0_rgba(255,255,255,0.3),3px_3px_0_rgba(0,0,0,0.35)]">
+          <span className="font-pixel text-[11px] uppercase text-white">You</span>
+          <span className="max-w-24 truncate text-[11px] font-semibold text-white/90">{name}</span>
+        </div>
+        {/* pixel arrow pointing down at the character */}
+        <svg width="14" height="8" viewBox="0 0 7 4" shapeRendering="crispEdges" aria-hidden className="-mt-px">
+          <path fill="#000" d="M0 0h7v1H6v1H5v1H4v1H3V3H2V2H1V1H0z" />
+          <path fill="var(--accent)" d="M1 0h5v1H5v1H4v1H3V2H2V1H1z" />
+        </svg>
+      </div>
+    </div>
+  )
 }
 
 /** "#n waiting" tag over a user in the lounge (rendered outside the Canvas). */

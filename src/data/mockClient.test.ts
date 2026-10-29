@@ -15,7 +15,7 @@ class ManualClock {
 }
 
 /** Seeded board with every slot freed and the queue emptied. */
-function emptyBoard() {
+function emptyBoard(withoutDevice: string[] = []) {
   const clock = new ManualClock()
   const client = new MockStudioClient({
     clock,
@@ -23,8 +23,9 @@ function emptyBoard() {
     seed: (now) => {
       const s = createSeedState(now)
       s.slots = s.slots.map((x) => ({
-        ...x, user_id: null, status: null, claimed_at: null, expected_until: null, render_eta: null,
+        ...x, user_id: null, status: null, claimed_at: null, expected_until: null, render_eta: null, device_name: null,
       }))
+      s.profiles = s.profiles.map((p) => (withoutDevice.includes(p.id) ? { ...p, device_name: null } : p))
       s.queue = []
       s.activity = []
       return s
@@ -81,7 +82,7 @@ describe('MockStudioClient rules', () => {
     await maya!.claimSlot(1, 'editing', 60)
     await jun!.claimSlot(2, 'designing', 60)
     await sam!.claimSlot(3, 'motion', 60)
-    await lena!.claimSlot(4, 'editing', 60)
+    await lena!.claimSlot(4, 'editing', 60, 'L1')
     await omar!.joinQueue()
     clock.advance(1)
     await priya!.joinQueue()
@@ -154,6 +155,66 @@ describe('MockStudioClient rules', () => {
     expect(await code(client.asUser(SEED_IDS.maya).releaseSlot(3))).toBe('not_your_slot')
     await client.asUser(SEED_IDS.admin).adminForceRelease(3)
     expect(client.peek().slots[2]!.hold_user_id).toBe(SEED_IDS.theo)
+  })
+
+  it("device names are unique: cannot save a colleague's, but can claim at their PC", async () => {
+    const { client } = emptyBoard()
+    const lena = client.asUser(SEED_IDS.lena)
+    expect(await code(lena.setMyDevice('c1'))).toBe('device_taken') // Maya's C1
+    await lena.claimSlot(1, 'editing', 60, 'C1')
+    expect(client.peek().slots[0]!.device_name).toBe('C1')
+    expect(client.peek().profiles.find((p) => p.id === SEED_IDS.lena)!.device_name).toBe('H7')
+  })
+
+  it('admin delete: frees the seat, keeps history unattributed; not self, not non-admins', async () => {
+    const { client } = emptyBoard()
+    const admin = client.asUser(SEED_IDS.admin)
+    await client.asUser(SEED_IDS.maya).claimSlot(1, 'editing', 60)
+    expect(await code(client.asUser(SEED_IDS.jun).adminDeleteUser(SEED_IDS.maya))).toBe('not_authorized')
+    expect(await code(admin.adminDeleteUser(SEED_IDS.admin))).toBe('cannot_modify_self')
+    await admin.adminDeleteUser(SEED_IDS.maya)
+    const snap = client.peek()
+    expect(snap.profiles.some((p) => p.id === SEED_IDS.maya)).toBe(false)
+    expect(snap.slots[0]!.user_id).toBeNull()
+    expect(snap.activity.some((a) => a.user_id === SEED_IDS.maya)).toBe(false)
+    expect(snap.activity[0]!.action).toBe('user_deleted')
+    expect(await code(admin.adminDeleteUser(SEED_IDS.maya))).toBe('user_not_found')
+  })
+
+  it('admin settings and account names are validated', async () => {
+    const { client } = emptyBoard()
+    const admin = client.asUser(SEED_IDS.admin)
+    expect(await code(client.asUser(SEED_IDS.maya).adminUpdateSettings({ holdMinutes: 5 }))).toBe('not_authorized')
+    expect(await code(admin.adminUpdateSettings({ maxSessionMin: 5 }))).toBe('invalid_input')
+    await admin.adminUpdateSettings({ maxSessionMin: 120, holdMinutes: 15 })
+    expect(client.peek().settings).toMatchObject({ max_session_min: 120, hold_minutes: 15 })
+    expect(await code(admin.adminUpdateAccount(1, '   '))).toBe('invalid_input')
+    await admin.adminUpdateAccount(1, 'Studio A')
+    expect(client.peek().accounts[0]!.label).toBe('Studio A')
+  })
+
+  it('Adobe device names: required, remembered, unique per account, correctable by holder or admin', async () => {
+    // An account from before device names existed (no device on the profile).
+    const { client } = emptyBoard([SEED_IDS.lena])
+    const lena = client.asUser(SEED_IDS.lena)
+    expect(await code(lena.claimSlot(1, 'editing', 30))).toBe('device_required')
+    expect(await code(lena.claimSlot(1, 'editing', 30, '<bad>'))).toBe('invalid_device')
+    await lena.claimSlot(1, 'editing', 30, ' L1 ')
+    let snap = client.peek()
+    expect(snap.slots[0]!.device_name).toBe('L1')
+    expect(snap.profiles.find((p) => p.id === SEED_IDS.lena)!.device_name).toBe('L1')
+
+    // Maya's remembered device is used by default; the same device can't take two seats on one account
+    await client.asUser(SEED_IDS.maya).claimSlot(2, 'editing', 30)
+    expect(client.peek().slots[1]!.device_name).toBe('C1')
+    expect(await code(client.asUser(SEED_IDS.jun).claimSlot(3, 'designing', 30, 'c1'))).toBe('ok') // account 2: fine
+    expect(await code(lena.setSlotDevice(1, 'C1'))).toBe('device_in_use')
+
+    expect(await code(client.asUser(SEED_IDS.sam).setSlotDevice(1, 'X9'))).toBe('not_your_slot')
+    expect(await code(client.asUser(SEED_IDS.admin).setSlotDevice(1, 'X9'))).toBe('ok')
+    await lena.releaseSlot(1)
+    snap = client.peek()
+    expect(snap.slots[0]!.device_name).toBeNull()
   })
 
   it('extending an overdue slot counts from now and is capped at max session', async () => {

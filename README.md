@@ -61,6 +61,23 @@ In the app, registering with confirmation on shows a "Check your email" screen w
 button; following the link signs the user in and shows a welcome toast. Expired or reused links
 show a clear message on the sign-in screen.
 
+### Device names (who is on which Adobe device)
+
+Adobe's activated-devices page lists seats by the computer's **device name** (its hostname,
+e.g. "H7"). All workstations are Windows, and that name only changes if IT renames the computer, so:
+
+- **Register asks for the device name** (Settings › System › About › Device name, or
+  Win + R → `cmd` → `hostname`): letters, numbers and dashes, max 15, saved in capitals.
+  Admins see it in the Admin users table when approving.
+- **Claiming records the seat on that device automatically**; slot cards and desk tags show it,
+  and each account lists the devices signed in to Adobe, matching Adobe's page.
+- **Moved desks?** The "Device: H7" button in the top bar changes it (and the seat you hold).
+- One device holds at most one seat per account. Releasing reminds you to sign out of Adobe on
+  that device; force end reminds the admin to sign that device out in Adobe.
+
+Migrations: `20261029120000_device_names.sql`, `20261029130000_signup_pc_name.sql`, `20261029140000_admin_tools.sql` (admin delete user), `20261029150000_unique_device_names.sql` (one account per device name)
+(run `npm run db:push`).
+
 ### Admin and approval
 
 The **first account that registers becomes an active admin**. Every account after that can sign

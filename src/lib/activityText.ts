@@ -1,6 +1,5 @@
 import type { ActivityEntry, SlotStatus, Snapshot } from '../data/types'
 import { nameOf } from './availability'
-import { STATUS_META } from './status'
 import type { IconName } from '../ui/PixelIcon'
 
 type Meta = {
@@ -8,6 +7,8 @@ type Meta = {
   status?: SlotStatus
   to?: SlotStatus
   minutes?: number
+  device_name?: string | null
+  from?: string | null
   reason?: string
 }
 
@@ -26,15 +27,17 @@ export function describeActivity(e: ActivityEntry, snapshot: Snapshot): { icon: 
   const where = slotLabel(snapshot, e.slot_id)
   switch (e.action) {
     case 'claim':
-      return { icon: 'block', text: `${who} claimed ${where}${m.status ? ` (${STATUS_META[m.status].label})` : ''}` }
+      return { icon: 'block', text: `${who} claimed ${where}${m.device_name ? ` on ${m.device_name}` : ''}` }
+    case 'device_change':
+      return { icon: 'clock', text: `${who} set ${target}'s device on ${where} to ${(e.meta as { to?: string }).to ?? '?'}` }
     case 'release':
-      return { icon: 'door', text: `${who} released ${where}` }
+      return { icon: 'door', text: `${who} ended their session on ${where}` }
     case 'force_release':
-      return { icon: 'warn', text: `${who} force-released ${target} from ${where}${m.reason ? ` (${m.reason})` : ''}` }
+      return { icon: 'warn', text: `${who} ended ${target}'s session on ${where}${m.reason ? ` (${m.reason})` : ''}` }
     case 'extend':
       return { icon: 'clock', text: `${who} extended ${where} by ${m.minutes ?? '?'} min` }
     case 'status':
-      return { icon: m.to ? STATUS_META[m.to].icon : 'clock', text: `${who} is now ${m.to ? STATUS_META[m.to].label.toLowerCase() : 'busy'} on ${where}` }
+      return { icon: 'clock', text: `${who} updated ${where}` }
     case 'break_start':
       return { icon: 'mug', text: `${who} took a break` }
     case 'break_end':
@@ -57,6 +60,12 @@ export function describeActivity(e: ActivityEntry, snapshot: Snapshot): { icon: 
       return { icon: 'user', text: `${who === 'Someone' ? 'A new user' : who} registered${(e.meta as { pending?: boolean })?.pending ? ' (waiting for approval)' : ''}` }
     case 'profile_update':
       return { icon: 'shield', text: `${who} updated ${target}'s account` }
+    case 'user_deleted':
+      return { icon: 'warn', text: `${who} deleted ${(e.meta as { name?: string })?.name ?? 'a user'}` }
+    case 'account_update':
+      return { icon: 'shield', text: `${who} renamed an Adobe account to ${(e.meta as { label?: string })?.label ?? '?'}` }
+    case 'settings_update':
+      return { icon: 'shield', text: `${who} changed the session rules` }
     case 'overdue':
       return { icon: 'warn', text: `${target} is over time on ${where}` }
     default:

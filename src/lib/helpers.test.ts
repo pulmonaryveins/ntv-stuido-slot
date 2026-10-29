@@ -12,7 +12,7 @@ const at = (min: number) => toIso(NOW + min * MINUTE)
 const slot = (over: Partial<Slot> = {}): Slot => ({
   id: 1, account_id: 1, slot_number: 1, user_id: null, status: null, claimed_at: null,
   expected_until: null, render_eta: null, hold_user_id: null, hold_until: null,
-  prev_status: null, break_until: null, ...over,
+  prev_status: null, break_until: null, device_name: null, ...over,
 })
 const seated = (over: Partial<Slot> = {}) =>
   slot({ user_id: 'u', status: 'editing', claimed_at: at(-30), expected_until: at(30), ...over })

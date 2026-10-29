@@ -39,9 +39,15 @@ export type StudioErrorCode =
   | 'slot_free'
   | 'cannot_knock_self'
   | 'knock_rate_limited'
+  | 'device_required'
+  | 'invalid_device'
+  | 'device_in_use'
   | 'rate_limited'
   | 'user_not_found'
   | 'cannot_modify_self'
+  | 'not_found'
+  | 'device_taken'
+  | 'invalid_input'
   | 'unknown'
 
 export class StudioError extends Error {
@@ -55,12 +61,22 @@ export class StudioError extends Error {
 
 /** The board RPCs, acting as the current user. */
 export interface StudioActions {
-  claimSlot(slotId: number, status: SlotStatus, minutes: number): Promise<Slot>
+  /** `deviceName` defaults to the user's remembered Adobe device name; a new one is remembered. */
+  claimSlot(slotId: number, status: SlotStatus, minutes: number, deviceName?: string | null): Promise<Slot>
+  /** Correct the Adobe device on an occupied seat (its user or an admin). */
+  setSlotDevice(slotId: number, deviceName: string): Promise<Slot>
+  /** Set the current user's remembered Adobe device name. */
+  setMyDevice(deviceName: string): Promise<Profile>
   releaseSlot(slotId: number): Promise<void>
   adminForceRelease(slotId: number): Promise<void>
   adminRemoveFromQueue(userId: string): Promise<void>
   /** Approve/deactivate a user or change their role. Undefined fields stay unchanged. */
   adminUpdateProfile(userId: string, changes: { role?: Profile['role']; active?: boolean }): Promise<Profile>
+  /** Permanently delete a user (frees their seat; activity history stays, unattributed). */
+  adminDeleteUser(userId: string): Promise<void>
+  adminUpdateAccount(accountId: number, label: string): Promise<Account>
+  /** Undefined fields stay unchanged. */
+  adminUpdateSettings(changes: { maxSessionMin?: number; holdMinutes?: number }): Promise<Settings>
   extendSlot(slotId: number, minutes: number): Promise<Slot>
   setStatus(slotId: number, status: SlotStatus, renderEta?: string | null): Promise<Slot>
   startBreak(slotId: number): Promise<Slot>

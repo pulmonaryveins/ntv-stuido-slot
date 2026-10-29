@@ -1,15 +1,15 @@
 import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { B, GEO, LED, PAL, mat, rand } from './kit'
-import { RACKS, ROOM_BACK } from './layout'
+import { GEO, LED, mat, rand } from './kit'
+import { RACKS } from './layout'
 
 const VAPOR_POOL = 28
 /** Rack block is voxels (world.ts): x in [-2, 2], z in [-12.5, -11.5], height 3. */
 const RACK_FRONT = RACKS[1] + 0.5 + 0.02
 const RACK_TOP: [number, number, number] = [RACKS[0], 3.6, RACKS[1]]
 
-/** Render farm corner: rack LEDs blink, heat vapor and wall fans scale with active renders. */
+/** Render farm corner: rack LEDs blink, heat vapor and vapor scales with active renders. */
 export function RenderFarm({ renders, reducedMotion }: { renders: number; reducedMotion: boolean }) {
   const leds = useMemo(() => {
     const out: { p: [number, number, number]; m: number }[] = []
@@ -32,8 +32,6 @@ export function RenderFarm({ renders, reducedMotion }: { renders: number; reduce
         <mesh key={i} geometry={GEO.box} material={LED[l.m]} position={l.p} scale={[0.22, 0.06, 0.03]} />
       ))}
       <Vapor renders={renders} reducedMotion={reducedMotion} />
-      <WallFan p={[RACKS[0] - 3.2, 3.8, ROOM_BACK + 0.08]} renders={renders} reducedMotion={reducedMotion} />
-      <WallFan p={[RACKS[0] + 3.2, 3.8, ROOM_BACK + 0.08]} renders={renders} reducedMotion={reducedMotion} phase={0.7} />
     </group>
   )
 }
@@ -74,29 +72,3 @@ function Vapor({ renders, reducedMotion }: { renders: number; reducedMotion: boo
   )
 }
 
-/** Exhaust fan on the back wall: spins faster with more renders. */
-function WallFan({ p, renders, reducedMotion, phase = 0 }: { p: [number, number, number]; renders: number; reducedMotion: boolean; phase?: number }) {
-  const rotor = useRef<THREE.Group>(null)
-  useFrame((_, dt) => {
-    if (rotor.current) rotor.current.rotation.z += dt * (reducedMotion ? 0.3 : 0.8 + renders * 2.2)
-  })
-  return (
-    <group position={p}>
-      <B p={[0, 0, 0]} s={[1.5, 1.5, 0.12]} c={PAL.metalDark} />
-      <B p={[0, 0, 0.05]} s={[1.3, 1.3, 0.04]} c={PAL.ink} />
-      <group ref={rotor} position={[0, 0, 0.1]} rotation={[0, 0, phase]}>
-        {[0, 1, 2, 3].map((i) => (
-          <mesh
-            key={i}
-            geometry={GEO.box}
-            material={mat(PAL.metal)}
-            rotation={[0, 0, (i * Math.PI) / 2]}
-            position={[Math.cos((i * Math.PI) / 2) * 0.3, Math.sin((i * Math.PI) / 2) * 0.3, 0]}
-            scale={[0.5, 0.16, 0.03]}
-          />
-        ))}
-        <B p={[0, 0, 0.02]} s={[0.18, 0.18, 0.06]} c={PAL.amber} />
-      </group>
-    </group>
-  )
-}

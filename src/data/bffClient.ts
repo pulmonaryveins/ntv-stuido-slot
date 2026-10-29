@@ -1,7 +1,9 @@
 import { ApiError, api } from '../lib/backend'
 import {
   StudioError,
+  type Account,
   type Profile,
+  type Settings,
   type Slot,
   type SlotStatus,
   type Snapshot,
@@ -17,6 +19,18 @@ import {
 export class BffStudioClient implements StudioClient {
   readonly kind = 'supabase' as const
   private userId: string | null = null
+  private listeners = new Set<(s: Snapshot) => void>()
+  private seq = 0
+  private applied = 0
+
+  /** Fetch the board and push it to subscribers; a slower, older response never overwrites a newer one. */
+  private async pull(): Promise<void> {
+    const mine = ++this.seq
+    const snap = await this.getSnapshot()
+    if (mine < this.applied) return
+    this.applied = mine
+    this.listeners.forEach((cb) => cb(snap))
+  }
 
   setUserId(id: string | null) {
     this.userId = id
@@ -41,14 +55,12 @@ export class BffStudioClient implements StudioClient {
   /** SSE `change` events trigger a debounced refetch; (re)connects and tab wake-ups refetch too. */
   subscribe(callback: (s: Snapshot) => void) {
     let timer: ReturnType<typeof setTimeout> | null = null
-    let disposed = false
+    this.listeners.add(callback)
     const refetch = () => {
       if (timer) clearTimeout(timer)
       timer = setTimeout(() => {
-        this.getSnapshot()
-          .then((s) => !disposed && callback(s))
-          .catch((e) => console.warn('[studio] refetch failed', e))
-      }, 80)
+        this.pull().catch((e) => console.warn('[studio] refetch failed', e))
+      }, 20)
     }
 
     const source = new EventSource('/api/stream', { withCredentials: true })
@@ -60,7 +72,7 @@ export class BffStudioClient implements StudioClient {
     document.addEventListener('visibilitychange', onWake)
 
     return () => {
-      disposed = true
+      this.listeners.delete(callback)
       if (timer) clearTimeout(timer)
       source.close()
       window.removeEventListener('online', refetch)
@@ -70,14 +82,23 @@ export class BffStudioClient implements StudioClient {
 
   private async call<T>(name: string, args: Record<string, unknown> = {}): Promise<T> {
     try {
-      return (await api<{ data: T }>(`rpc/${name}`, { body: args })).data
+      const data = (await api<{ data: T }>(`rpc/${name}`, { body: args })).data
+      // Show our own change right away; don't wait for the realtime event to come back round.
+      this.pull().catch((e) => console.warn('[studio] refetch failed', e))
+      return data
     } catch (e) {
       throw toStudioError(e)
     }
   }
 
-  claimSlot(slotId: number, status: SlotStatus, minutes: number) {
-    return this.call<Slot>('claim_slot', { p_slot_id: slotId, p_status: status, p_minutes: minutes })
+  claimSlot(slotId: number, status: SlotStatus, minutes: number, deviceName?: string | null) {
+    return this.call<Slot>('claim_slot', { p_slot_id: slotId, p_status: status, p_minutes: minutes, p_device_name: deviceName ?? null })
+  }
+  setSlotDevice(slotId: number, deviceName: string) {
+    return this.call<Slot>('set_slot_device', { p_slot_id: slotId, p_device_name: deviceName })
+  }
+  setMyDevice(deviceName: string) {
+    return this.call<Profile>('update_my_profile', { p_device_name: deviceName })
   }
   releaseSlot(slotId: number) {
     return this.call<void>('release_slot', { p_slot_id: slotId })
@@ -93,6 +114,18 @@ export class BffStudioClient implements StudioClient {
       p_user_id: userId,
       p_role: changes.role ?? null,
       p_active: changes.active ?? null,
+    })
+  }
+  adminDeleteUser(userId: string) {
+    return this.call<void>('admin_delete_user', { p_user_id: userId })
+  }
+  adminUpdateAccount(accountId: number, label: string) {
+    return this.call<Account>('admin_update_account', { p_account_id: accountId, p_label: label })
+  }
+  adminUpdateSettings(changes: { maxSessionMin?: number; holdMinutes?: number }) {
+    return this.call<Settings>('admin_update_settings', {
+      p_max_session_min: changes.maxSessionMin ?? null,
+      p_hold_minutes: changes.holdMinutes ?? null,
     })
   }
   extendSlot(slotId: number, minutes: number) {

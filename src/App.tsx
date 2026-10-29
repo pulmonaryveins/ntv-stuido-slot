@@ -4,11 +4,12 @@ import { startStudio, useStudio } from './store/studio'
 import { initAuth, useAuth } from './store/auth'
 import { backendMode } from './lib/backend'
 import { AuthScreen, InactiveScreen, LoadingScreen, NewPasswordScreen } from './ui/AuthScreen'
+import { ActivityBar, Loader } from './ui/Loader'
 import { TopBar } from './ui/TopBar'
 import { Panel } from './ui/Panel'
-import { ClaimDialog, RenderEtaDialog } from './ui/Dialogs'
+import { ClaimDialog, DeviceNameDialog } from './ui/Dialogs'
 import { Toasts } from './ui/Toasts'
-import { AdminStub } from './ui/AdminStub'
+import { AdminPage } from './ui/admin/AdminPage'
 
 const Stage = lazy(() => import('./scene/Stage'))
 
@@ -69,6 +70,7 @@ function Board() {
           Skip to slots
         </a>
         <TopBar />
+        <ActivityBar />
         {loadError && (
           <p role="alert" className="bg-overdue/15 px-4 py-2 text-sm text-overdue">
             Could not load the board: {loadError}
@@ -76,7 +78,7 @@ function Board() {
         )}
         {page === 'admin' ? (
           <main className="min-h-0 flex-1 overflow-y-auto">
-            <AdminStub />
+            <AdminPage />
           </main>
         ) : (
           <main className="flex min-h-0 flex-1 flex-col overflow-y-auto lg:flex-row lg:overflow-hidden">
@@ -85,7 +87,7 @@ function Board() {
                 className={show3d ? 'relative h-[48vh] shrink-0 lg:h-auto lg:min-w-0 lg:flex-1' : 'hidden'}
                 aria-hidden={!show3d}
               >
-                <Suspense fallback={<div className="grid h-full place-items-center text-sm text-muted">Loading 3D studio…</div>}>
+                <Suspense fallback={<Loader label="Building the office…" className="h-full" />}>
                   <Stage active={show3d} />
                 </Suspense>
               </div>
@@ -96,19 +98,19 @@ function Board() {
               className={
                 show3d
                   ? 'border-line bg-bg lg:w-[400px] lg:shrink-0 lg:overflow-y-auto lg:border-l'
-                  : 'mx-auto w-full max-w-6xl lg:overflow-y-auto'
+                  : 'w-full lg:overflow-y-auto'
               }
             >
               <Panel wide={!show3d} />
             </div>
           </main>
         )}
-        <footer className="flex flex-wrap items-center gap-x-3 border-t border-line bg-surface px-4 py-1.5 text-[11px] text-muted">
+        <footer className="on-dark flex flex-wrap items-center gap-x-3 border-t-2 border-black bg-black px-4 py-1.5 text-[11px] text-muted">
           <span>Studio Slots · never store Adobe credentials here</span>
         </footer>
       </div>
       <ClaimDialog />
-      <RenderEtaDialog />
+      <DeviceNameDialog />
       <Toasts />
     </Tooltip.Provider>
   )

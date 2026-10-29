@@ -22,20 +22,22 @@ const P = (
   role: Profile['role'],
   work_role: Profile['work_role'],
   avatar_color: string,
-): Profile => ({ id, name, role, work_role, active: true, avatar_color, created_at: '2026-10-01T09:00:00.000Z' })
+  device_name: string | null,
+): Profile => ({ id, name, role, work_role, active: true, avatar_color, device_name, created_at: '2026-10-01T09:00:00.000Z' })
 
 export const SEED_PROFILES: Profile[] = [
-  P(SEED_IDS.admin, 'Avery Admin', 'admin', 'designer', '#e07a5f'),
-  P(SEED_IDS.maya, 'Maya Ortiz', 'user', 'editor', '#3d9970'),
-  P(SEED_IDS.jun, 'Jun Park', 'user', 'designer', '#f2a541'),
-  P(SEED_IDS.sam, 'Sam Rivera', 'user', 'motion', '#5b8def'),
-  P(SEED_IDS.lena, 'Lena Novak', 'user', 'editor', '#c75b9b'),
-  P(SEED_IDS.omar, 'Omar Haddad', 'user', 'designer', '#2bb3a3'),
-  P(SEED_IDS.priya, 'Priya Shah', 'user', 'motion', '#8e6cd1'),
-  P(SEED_IDS.theo, 'Theo Laurent', 'user', 'editor', '#d9534f'),
-  P(SEED_IDS.kai, 'Kai Mendes', 'user', 'designer', '#6c9a3b'),
-  P(SEED_IDS.rosa, 'Rosa Kim', 'user', 'editor', '#e8a87c'),
-  P(SEED_IDS.ivan, 'Ivan Petrov', 'user', 'motion', '#4a7c9b'),
+  // Device names (Windows hostnames) as Adobe's activated-devices page shows them.
+  P(SEED_IDS.admin, 'Avery Admin', 'admin', 'designer', '#e07a5f', 'ADMIN-PC'),
+  P(SEED_IDS.maya, 'Maya Ortiz', 'user', 'editor', '#3d9970', 'C1'),
+  P(SEED_IDS.jun, 'Jun Park', 'user', 'designer', '#f2a541', 'D4'),
+  P(SEED_IDS.sam, 'Sam Rivera', 'user', 'motion', '#5b8def', 'F3'),
+  P(SEED_IDS.lena, 'Lena Novak', 'user', 'editor', '#c75b9b', 'H7'),
+  P(SEED_IDS.omar, 'Omar Haddad', 'user', 'designer', '#2bb3a3', 'A2'),
+  P(SEED_IDS.priya, 'Priya Shah', 'user', 'motion', '#8e6cd1', 'B3'),
+  P(SEED_IDS.theo, 'Theo Laurent', 'user', 'editor', '#d9534f', 'E5'),
+  P(SEED_IDS.kai, 'Kai Mendes', 'user', 'designer', '#6c9a3b', 'DESIGN-07'),
+  P(SEED_IDS.rosa, 'Rosa Kim', 'user', 'editor', '#e8a87c', 'EDIT-02'),
+  P(SEED_IDS.ivan, 'Ivan Petrov', 'user', 'motion', '#4a7c9b', 'MOTION-01'),
 ]
 
 export const SEED_ACCOUNTS: Account[] = [
@@ -73,6 +75,7 @@ function emptySlot(id: number, account_id: number, slot_number: number): Slot {
     hold_until: null,
     prev_status: null,
     break_until: null,
+    device_name: null,
   }
 }
 
@@ -88,6 +91,7 @@ export function createSeedState(now: number): SeedState {
     status,
     claimed_at: at(claimedMin),
     expected_until: at(untilMin),
+    device_name: SEED_PROFILES.find((p) => p.id === user)?.device_name ?? null,
   })
 
   const slots: Slot[] = [

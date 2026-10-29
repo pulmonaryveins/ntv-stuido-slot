@@ -3,8 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Slot, Snapshot } from '../data'
 import { deriveSlotView } from '../lib/slotState'
-import { formatDuration } from '../lib/format'
-import { STATUS_META } from '../lib/status'
+import { formatClock, formatDuration } from '../lib/format'
 import { slotAccent } from '../ui/SlotCard'
 import { useNow } from '../ui/useNow'
 import { useStudio } from '../store/studio'
@@ -12,9 +11,10 @@ import { studioClient } from '../data'
 import { B, C, GEO, GLOW, PAL } from './kit'
 import { useAnchor } from './anchors'
 import { PixelIcon, type IconName } from '../ui/PixelIcon'
+import { UserAvatar } from '../ui/UserAvatar'
 import { CUBE_BACK, CUBE_FRONT, CUBE_W, buildingX, type DeskSpot } from './layout'
 
-const BOOTH_ACCENT = ['#5e7290', '#6f8a6f']
+const BOOTH_ACCENT = ['#c9a670', '#7a5a3c']
 
 function useSignTexture(text: string, accent: string) {
   return useMemo(() => {
@@ -22,11 +22,14 @@ function useSignTexture(text: string, accent: string) {
     canvas.width = 512
     canvas.height = 128
     const ctx = canvas.getContext('2d')!
-    ctx.fillStyle = '#23252c'
+    // Wooden sign board: plank face with grain lines, dark lettering.
+    ctx.fillStyle = '#b8945f'
     ctx.fillRect(0, 0, 512, 128)
+    ctx.fillStyle = '#a3824f'
+    for (let y = 0; y < 128; y += 32) ctx.fillRect(0, y, 512, 3)
     ctx.fillStyle = accent
-    ctx.fillRect(0, 0, 28, 128)
-    ctx.fillStyle = '#f4f1ea'
+    ctx.fillRect(0, 0, 18, 128)
+    ctx.fillStyle = '#2a1d10'
     ctx.font = "600 62px 'Pixelify Sans', monospace"
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
@@ -48,7 +51,8 @@ const NOTE_COLORS = ['#f7e26b', '#f59fb5', '#8fd3f0', '#b6e388']
 export function Building({ index, label }: { index: number; label: string }) {
   const bx = buildingX(index)
   const accent = BOOTH_ACCENT[index % BOOTH_ACCENT.length]!
-  const fabric = index === 0 ? '#6f7f97' : '#7d927c'
+  // Account 1 in oak, account 2 in spruce planks.
+  const fabric = index === 0 ? '#b8945f' : '#7a5a3c'
   const sign = useSignTexture(label, accent)
   const depth = CUBE_FRONT - CUBE_BACK
   const midZ = (CUBE_BACK + CUBE_FRONT) / 2
@@ -56,8 +60,8 @@ export function Building({ index, label }: { index: number; label: string }) {
   const Panel = ({ x, z, w, d }: { x: number; z: number; w: number; d: number }) => (
     <group>
       <B p={[x, PANEL_H / 2, z]} s={[w, PANEL_H, d]} c={fabric} cast />
-      <B p={[x, PANEL_H + 0.03, z]} s={[w + 0.04, 0.06, d + 0.04]} c={PAL.metal} />
-      <B p={[x, 0.04, z]} s={[w + 0.02, 0.08, d + 0.02]} c={PAL.metalDark} />
+      <B p={[x, PANEL_H + 0.05, z]} s={[w + 0.08, 0.1, d + 0.08]} c="#6b4f2e" />
+      <B p={[x, 0.06, z]} s={[w + 0.06, 0.12, d + 0.06]} c="#8a8a8a" />
     </group>
   )
 
@@ -84,12 +88,12 @@ export function Building({ index, label }: { index: number; label: string }) {
       <B p={[bx, PANEL_H + 0.4, CUBE_FRONT - 0.35]} s={[0.3, 0.22, 0.3]} c={PAL.leaf} />
       {/* account sign hung above the pod */}
       {[-1.5, 1.5].map((dx) => (
-        <B key={dx} p={[bx + dx, PANEL_H + 0.85, CUBE_BACK]} s={[0.04, 1.6, 0.04]} c={PAL.metal} />
+        <B key={dx} p={[bx + dx, PANEL_H + 0.85, CUBE_BACK]} s={[0.12, 1.6, 0.12]} c="#6b4f2e" />
       ))}
       <mesh geometry={GEO.plane} position={[bx, PANEL_H + 2.1, CUBE_BACK + 0.04]} scale={[3.4, 0.85, 1]}>
         <meshBasicMaterial map={sign} toneMapped={false} />
       </mesh>
-      <B p={[bx, PANEL_H + 2.1, CUBE_BACK]} s={[3.5, 0.95, 0.06]} c={PAL.metalDark} />
+      <B p={[bx, PANEL_H + 2.1, CUBE_BACK]} s={[3.6, 1.0, 0.1]} c="#4e3a22" />
     </group>
   )
 }
@@ -125,11 +129,12 @@ export function Desk({ spot, slot }: { spot: DeskSpot; slot: Slot }) {
     >
       <mesh ref={ring} geometry={GEO.ring} material={ringMat} position={[dx, 0.03, (dz + spot.chair[1]) / 2]} rotation={[-Math.PI / 2, 0, 0]} scale={4.6} />
       {/* cubicle work surface fixed to the back panel, pedestal drawers underneath */}
-      <B p={[dx, 0.76, dz]} s={[CUBE_W - 0.2, 0.06, 0.9]} c="#f1eee8" cast />
-      <B p={[dx, 0.73, dz + 0.44]} s={[CUBE_W - 0.2, 0.04, 0.03]} c={PAL.metal} />
-      <B p={[dx + spot.side * 1.25, 0.36, dz]} s={[0.5, 0.72, 0.8]} c={PAL.metal} cast />
-      {[0.18, 0.4, 0.6].map((y) => (
-        <B key={y} p={[dx + spot.side * 1.25, y, dz + 0.41]} s={[0.4, 0.02, 0.01]} c={PAL.metalDark} />
+      <B p={[dx, 0.76, dz]} s={[CUBE_W - 0.2, 0.1, 0.9]} c="#c9a670" cast />
+      <B p={[dx, 0.7, dz + 0.44]} s={[CUBE_W - 0.2, 0.06, 0.04]} c="#6b4f2e" />
+      {/* drawer chest under the desk */}
+      <B p={[dx + spot.side * 1.25, 0.36, dz]} s={[0.6, 0.72, 0.8]} c="#5e4630" cast />
+      {[0.2, 0.45].map((y) => (
+        <B key={y} p={[dx + spot.side * 1.25, y, dz + 0.41]} s={[0.12, 0.06, 0.02]} c="#c9c9c9" />
       ))}
       {/* dual monitors facing the user (and the camera) */}
       {[-0.42, 0.42].map((ox) => (
@@ -153,9 +158,9 @@ export function Desk({ spot, slot }: { spot: DeskSpot; slot: Slot }) {
           <B key={i} p={[Math.sin((i / 5) * Math.PI * 2) * 0.17, 0.05, Math.cos((i / 5) * Math.PI * 2) * 0.17]} s={[0.07, 0.05, 0.34]} r={(i / 5) * Math.PI * 2} c={PAL.ink} />
         ))}
         <B p={[0, 0.32, 0]} s={[0.07, 0.5, 0.07]} c={PAL.metal} />
-        <B p={[0, 0.6, 0]} s={[0.62, 0.12, 0.58]} c="#2b2d35" cast />
-        <B p={[0, 1.02, 0.29]} s={[0.56, 0.7, 0.08]} c="#2b2d35" cast />
-        <B p={[0, 1.42, 0.29]} s={[0.34, 0.16, 0.08]} c="#2b2d35" />
+        <B p={[0, 0.6, 0]} s={[0.62, 0.12, 0.58]} c="#7a5a3c" cast />
+        <B p={[0, 1.02, 0.29]} s={[0.56, 0.7, 0.08]} c="#7a5a3c" cast />
+        <B p={[0, 1.42, 0.29]} s={[0.34, 0.16, 0.08]} c="#4e3a22" />
         {[-0.33, 0.33].map((x) => (
           <B key={x} p={[x, 0.82, 0]} s={[0.06, 0.06, 0.38]} c={PAL.ink} />
         ))}
@@ -173,44 +178,58 @@ export function DeskPlate({ spot, slot, snapshot, actorId }: { spot: DeskSpot; s
   const holder = snapshot.profiles.find((p) => p.id === (slot.user_id ?? slot.hold_user_id))
   const mine = !!actorId && (slot.user_id === actorId || slot.hold_user_id === actorId)
   const pulse = view.kind === 'rendering' || view.kind === 'reserved'
-  // Left desk's plate extends left, right desk's extends right, so neighbours never overlap.
-  const anchor = useAnchor(`desk:${slot.id}`, spot.desk[0], spot.side < 0 ? 1.75 : 2.3, spot.desk[1], spot.side < 0 ? -0.85 : -0.15)
+  // Left desk's plate extends left, right desk's extends right; the projector un-overlaps the rest.
+  const anchor = useAnchor(`desk:${slot.id}`, spot.desk[0], 1.7, spot.desk[1], spot.side < 0 ? -0.85 : -0.15)
 
-  let icon: IconName = 'block'
-  let line = 'Free'
-  if (view.kind === 'reserved') {
-    icon = 'ticket'
-    line = `Reserved · ${formatDuration(view.holdRemainingMs ?? 0)}`
-  } else if (slot.status) {
-    icon = STATUS_META[slot.status].icon
-    line =
-      view.kind === 'rendering' && view.renderRemainingMs !== null
-        ? `Render ${formatDuration(view.renderRemainingMs)}`
+  const state =
+    view.kind === 'reserved'
+      ? `Held ${formatDuration(view.holdRemainingMs ?? 0)}`
+      : !slot.user_id
+        ? 'Free'
         : view.overdue
           ? `Over ${formatDuration(view.remainingMs)}`
           : `${formatDuration(view.remainingMs)} left`
-  }
+  const icon: IconName = view.kind === 'reserved' ? 'ticket' : slot.user_id ? 'brush' : 'block'
+  const end = slot.user_id ? now + view.remainingMs : null
 
+  // Compact by default (desks sit close together); details are on the card in the side panel.
   return (
     <div ref={anchor} className="absolute left-0 top-0 will-change-transform">
       <button
         type="button"
         tabIndex={-1}
         onClick={() => focusSlot(slot.id)}
-        className={`px-panel w-36 select-none px-2 py-1 text-left text-ink ${pulse ? 'pulse' : ''}`}
-        style={{ borderColor: accent, ['--pulse-color' as string]: accent }}
+        title={end !== null ? `Until ${formatClock(end)}` : undefined}
+        className={`on-dark block w-40 select-none border-2 border-black bg-[#1e1e1f] text-left text-ink shadow-[2px_2px_0_rgba(0,0,0,0.35)] ${pulse ? 'pulse' : ''} ${
+          mine ? 'outline-2 outline-accent' : ''
+        }`}
+        style={{ ['--pulse-color' as string]: accent }}
       >
-        <div className="flex items-center gap-1 text-[11px] font-semibold leading-tight">
-          <PixelIcon name={icon} size={14} />
-          <span className="truncate">{holder?.name ?? `Slot ${slot.slot_number}`}</span>
-          {mine && <span className="text-accent">(you)</span>}
+        <div className="flex items-center gap-1 px-1.5 py-0.5 text-black" style={{ background: accent }}>
+          <PixelIcon name={icon} size={10} />
+          <span className="font-pixel text-[10px] uppercase">Slot {slot.slot_number}</span>
+          <span className="ml-auto font-pixel text-[10px] uppercase tabular-nums">{state}</span>
         </div>
-        <div className="font-pixel text-[10px] uppercase leading-tight" style={{ color: accent }}>
-          {line}
+        <div className="flex items-center gap-1.5 px-1.5 py-1 text-[11px] font-semibold leading-none">
+          {holder ? (
+            <>
+              <UserAvatar profile={holder} size={18} />
+              <span className="min-w-0 flex-1 truncate">{holder.name}</span>
+              {mine && <span className="shrink-0 bg-accent px-1 py-px font-pixel text-[9px] uppercase text-white">You</span>}
+              {/* Hostname: what Adobe lists. Never truncated. */}
+              {slot.user_id && (
+                <span className="shrink-0 border border-black bg-white px-1 py-px font-mono text-[10px] font-bold text-black">
+                  {slot.device_name ?? '?'}
+                </span>
+              )}
+            </>
+          ) : (
+            <span className="text-muted">Available</span>
+          )}
         </div>
         {slot.user_id && (
-          <div className="px-bar mt-0.5 h-2">
-            <span style={{ width: `${view.progress * 100}%`, color: accent }} />
+          <div className="h-1 bg-black/60">
+            <div className="h-full" style={{ width: `${Math.min(1, view.progress) * 100}%`, background: accent }} />
           </div>
         )}
       </button>

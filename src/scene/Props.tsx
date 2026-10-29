@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { B, C, GEO, GLOW, NIGHT, PAL, mat, rand } from './kit'
-import { ARCADE_X, ARCADE_Z, BEANBAGS, COLLAB, CUBE_BACK, CUBE_W, KITCHEN, MEETING, PINGPONG, RACKS, ROOM_BACK, ROOM_X, SOFA_X, TV_POS, buildingX } from './layout'
+import { ARCADES, BEANBAGS, MEETING_ROOM, COLLAB, CUBE_BACK, KITCHEN, MEETING, PINGPONG, ROOM_BACK, ROOM_X, SOFA_X, TV_POS, buildingX } from './layout'
 
 const LEFT_WALL = -ROOM_X
 
@@ -84,7 +84,7 @@ function Sofa() {
 }
 
 /** Arcade cabinet with a flickering pixel game on screen (faces the camera, +z). */
-function Arcade({ x, hue }: { x: number; hue: number }) {
+function Arcade({ p, hue }: { p: [number, number]; hue: number }) {
   const screen = useAnimatedScreen(16, 12, (ctx, f) => {
     ctx.fillStyle = '#0b0b1e'
     ctx.fillRect(0, 0, 16, 12)
@@ -99,7 +99,8 @@ function Arcade({ x, hue }: { x: number; hue: number }) {
   }, 6)
   const body = `hsl(${hue} 55% 42%)`
   return (
-    <group position={[x, 0, ARCADE_Z]}>
+    // Built facing +z, turned to face into the room (-x) from the right edge.
+    <group position={[p[0], 0, p[1]]} rotation={[0, -Math.PI / 2, 0]}>
       <B p={[0, 0.85, 0]} s={[1.0, 1.7, 0.9]} c={body} cast />
       <B p={[0, 1.95, -0.05]} s={[1.0, 0.5, 0.8]} c={PAL.ink} cast />
       <mesh geometry={GEO.plane} position={[0, 1.55, 0.46]} rotation={[-0.15, 0, 0]} scale={[0.8, 0.6, 1]}>
@@ -229,17 +230,17 @@ function Plant({ p, kind, s = 1 }: { p: [number, number]; kind: PlantKind; s?: n
 
 /** Placed where they frame zones: corners, beside the door and TV, by the pods. */
 const PLANTS: { p: [number, number]; kind: PlantKind; s?: number }[] = [
-  { p: [14.2, -11.9], kind: 'fiddle', s: 1.2 },
+  { p: [-6.6, -8.9], kind: 'fiddle', s: 1.1 },
   { p: [12.9, -6.9], kind: 'bush' },
   { p: [-14.3, 0.2], kind: 'snake' },
   { p: [-14.3, 2.8], kind: 'snake' },
   { p: [-14.2, 9.3], kind: 'fiddle' },
   { p: [-10.6, -2.7], kind: 'bush', s: 0.9 },
-  { p: [10.6, -2.7], kind: 'bush', s: 0.9 },
+  { p: [7.4, -2.7], kind: 'bush', s: 0.9 },
   { p: [-14.2, 12.9], kind: 'fiddle', s: 1.15 },
   { p: [14.2, 12.9], kind: 'fiddle', s: 1.15 },
   { p: [13.9, 7.2], kind: 'snake' },
-  { p: [3.2, -11.9], kind: 'snake' },
+  { p: [2.25, -8.4], kind: 'snake' },
   { p: [-6.2, 12.9], kind: 'bush' },
 ]
 
@@ -251,10 +252,10 @@ function Kitchen() {
   return (
     <group>
       {/* base cabinets + worktop along the back wall */}
-      <B p={[kx, 0.45, kz]} s={[6.4, 0.9, 0.9]} c="#f1eee8" cast />
+      <B p={[kx, 0.45, kz]} s={[6.4, 0.9, 0.9]} c="#b8945f" cast />
       <B p={[kx, 0.93, kz]} s={[6.5, 0.06, 1.0]} c={PAL.woodDark} />
       {[-2.4, -1.2, 0, 1.2, 2.4].map((dx) => (
-        <B key={dx} p={[kx + dx, 0.5, kz + 0.46]} s={[0.04, 0.8, 0.01]} c="#cfcac1" />
+        <B key={dx} p={[kx + dx, 0.5, kz + 0.46]} s={[0.06, 0.8, 0.02]} c="#6b4f2e" />
       ))}
       {/* coffee machine, mugs, sink, kettle */}
       <B p={[kx - 1.6, 1.25, kz - 0.1]} s={[0.6, 0.6, 0.5]} c={PAL.ink} cast />
@@ -303,20 +304,20 @@ function Meeting() {
   ]
   return (
     <group>
-      <B p={[mx, 0.74, mz]} s={[2.0, 0.08, 1.4]} c="#f1eee8" cast />
+      <B p={[mx, 0.74, mz]} s={[2.0, 0.12, 1.4]} c="#7a5a3c" cast />
       <B p={[mx, 0.37, mz]} s={[0.2, 0.7, 0.2]} c={PAL.metal} />
       <B p={[mx, 0.03, mz]} s={[0.9, 0.06, 0.9]} c={PAL.metalDark} />
       {seats.map((c, i) => (
         <group key={i} position={[mx + c.x, 0, mz + c.z]} rotation={[0, c.r, 0]}>
           <B p={[0, 0.25, 0]} s={[0.06, 0.5, 0.06]} c={PAL.metal} />
-          <B p={[0, 0.5, 0]} s={[0.5, 0.08, 0.5]} c="#c24f3e" />
-          <B p={[0, 0.8, -0.23]} s={[0.5, 0.55, 0.06]} c="#c24f3e" />
+          <B p={[0, 0.5, 0]} s={[0.5, 0.1, 0.5]} c="#b8945f" />
+          <B p={[0, 0.8, -0.23]} s={[0.5, 0.55, 0.08]} c="#7a5a3c" />
         </group>
       ))}
       <B p={[mx - 0.3, 0.8, mz + 0.1]} s={[0.4, 0.03, 0.3]} c={PAL.ink} />
       <B p={[mx + 0.4, 0.82, mz - 0.2]} s={[0.12, 0.1, 0.12]} c={PAL.cream} />
       {/* whiteboard on the back wall */}
-      <group position={[mx, 1.55, ROOM_BACK + 0.06]}>
+      <group position={[mx, 1.55, MEETING_ROOM.z0 + 0.12]}>
         <B p={[0, 0, 0]} s={[2.6, 1.2, 0.05]} c={PAL.metal} />
         <B p={[0, 0, 0.03]} s={[2.46, 1.06, 0.02]} c="#fbfbf8" />
         <B p={[-0.6, 0.25, 0.045]} s={[0.9, 0.05, 0.01]} c="#3a6fd8" />
@@ -330,8 +331,8 @@ function Meeting() {
 
 /** Printer and recycling bin beside the server racks. */
 function PrintStation() {
-  const x = RACKS[0] + 4.6
-  const z = ROOM_BACK + 0.5
+  const x = LEFT_WALL + 0.7
+  const z = -7.2
   return (
     <group>
       <B p={[x, 0.4, z]} s={[1.2, 0.8, 0.8]} c="#e7ebee" cast />
@@ -372,19 +373,6 @@ function CollabTable() {
 
 // --- night lighting ----------------------------------------------------------
 
-const CEILING = 5.4
-
-/** Pendant lamp on a cable from the (implied) ceiling; the bulb glows with the night. */
-function Pendant({ x, z, drop = 2.2 }: { x: number; z: number; drop?: number }) {
-  const y = CEILING - drop
-  return (
-    <group position={[x, 0, z]}>
-      <B p={[0, (CEILING + y) / 2, 0]} s={[0.03, CEILING - y, 0.03]} c={PAL.ink} />
-      <B p={[0, y, 0]} s={[0.55, 0.28, 0.55]} c={PAL.ink} />
-      <mesh geometry={GEO.box} material={GLOW.lamp} position={[0, y - 0.15, 0]} scale={[0.4, 0.04, 0.4]} />
-    </group>
-  )
-}
 
 const LIGHT_POOLS: { p: [number, number, number]; k: number }[] = [
   { p: [buildingX(0), 3.2, CUBE_BACK + 1.4], k: 1 },
@@ -393,7 +381,7 @@ const LIGHT_POOLS: { p: [number, number, number]; k: number }[] = [
   { p: [KITCHEN[0], 3.0, KITCHEN[1] + 1.6], k: 0.9 },
   { p: [MEETING[0], 3.0, MEETING[1]], k: 0.8 },
   { p: [SOFA_X - 1.5, 2.8, TV_POS[1]], k: 0.8 },
-  { p: [ARCADE_X[1]!, 3.0, (ARCADE_Z + PINGPONG[1]) / 2], k: 0.8 },
+  { p: [12, 3.0, (ARCADES[1]![1] + PINGPONG[1]) / 2], k: 0.8 },
 ]
 
 /**
@@ -410,17 +398,9 @@ function OfficeLights() {
       l.ref.visible = n > 0.02
     })
   })
-  const desks = [-1, 1].flatMap((side) => [0, 1].map((b) => buildingX(b) + side * (CUBE_W / 2)))
   return (
     <group>
-      {desks.map((x) => (
-        <Pendant key={x} x={x} z={CUBE_BACK + 0.9} drop={2.3} />
-      ))}
-      <Pendant x={COLLAB[0] - 1.3} z={COLLAB[1]} />
-      <Pendant x={COLLAB[0] + 1.3} z={COLLAB[1]} />
-      <Pendant x={KITCHEN[0] - 1.5} z={KITCHEN[1] + 0.9} />
-      <Pendant x={KITCHEN[0] + 1.5} z={KITCHEN[1] + 0.9} />
-      <Pendant x={MEETING[0]} z={MEETING[1]} drop={2.5} />
+      {/* No visible pendants: without a ceiling their cables read as poles standing in the room. */}
       {LIGHT_POOLS.map((l, i) => (
         <pointLight
           key={i}
@@ -448,8 +428,8 @@ export function Lounge() {
       <FloorLamp p={[SOFA_X - 0.3, TV_POS[1] - 2.3]} />
       <FloorLamp p={[SOFA_X - 0.3, TV_POS[1] + 2.3]} />
       {/* game corner (front-right) */}
-      {ARCADE_X.map((x, i) => (
-        <Arcade key={x} x={x} hue={[320, 200, 40][i]!} />
+      {ARCADES.map((p, i) => (
+        <Arcade key={i} p={p} hue={[320, 200, 40][i]!} />
       ))}
       <PingPong />
       {/* work support */}
@@ -464,8 +444,8 @@ export function Lounge() {
       {/* posters: beside the door and the TV, and between the back windows */}
       <Poster p={[LEFT_WALL + 0.06, 2.3, 3.7]} w={1.0} h={1.3} seed={1} side />
       <Poster p={[LEFT_WALL + 0.06, 2.3, 10.7]} w={1.4} h={1.0} seed={2} side />
-      <Poster p={[-8.25, 4.2, ROOM_BACK + 0.06]} w={1.6} h={1.0} seed={3} />
-      <Poster p={[8.5, 4.2, ROOM_BACK + 0.06]} w={1.6} h={1.0} seed={4} />
+      <Poster p={[-5.1, 2.5, ROOM_BACK + 0.06]} w={1.2} h={0.9} seed={3} />
+      <Poster p={[9.6, 2.3, ROOM_BACK + 0.06]} w={1.0} h={0.8} seed={4} />
     </group>
   )
 }

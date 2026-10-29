@@ -1,10 +1,12 @@
 import {
   KNOCK_COOLDOWN_MS,
   StudioError,
+  type Account,
   type ActivityEntry,
   type Profile,
   type Slot,
   type SlotStatus,
+  type Settings,
   type Snapshot,
   type StudioActions,
   type StudioClient,
@@ -135,11 +137,16 @@ export class MockStudioClient implements StudioClient {
   asUser(userId: string): StudioActions {
     const call = <T>(fn: () => T) => this.run(userId, fn)
     return {
-      claimSlot: (id, status, minutes) => call(() => this.doClaim(userId, id, status, minutes)),
+      claimSlot: (id, status, minutes, device) => call(() => this.doClaim(userId, id, status, minutes, device ?? null)),
+      setSlotDevice: (id, device) => call(() => this.doSetSlotDevice(userId, id, device)),
+      setMyDevice: (device) => call(() => this.doSetMyDevice(userId, device)),
       releaseSlot: (id) => call(() => this.doRelease(userId, id)),
       adminForceRelease: (id) => call(() => this.doForceRelease(userId, id)),
       adminRemoveFromQueue: (uid) => call(() => this.doRemoveFromQueue(userId, uid)),
       adminUpdateProfile: (uid, changes) => call(() => this.doUpdateProfile(userId, uid, changes)),
+      adminDeleteUser: (uid) => call(() => this.doDeleteUser(userId, uid)),
+      adminUpdateAccount: (id, label) => call(() => this.doUpdateAccount(userId, id, label)),
+      adminUpdateSettings: (changes) => call(() => this.doUpdateSettings(userId, changes)),
       extendSlot: (id, minutes) => call(() => this.doExtend(userId, id, minutes)),
       setStatus: (id, status, eta) => call(() => this.doSetStatus(userId, id, status, eta ?? null)),
       startBreak: (id) => call(() => this.doStartBreak(userId, id)),
@@ -154,8 +161,14 @@ export class MockStudioClient implements StudioClient {
     return this.asUser(this.actorId ?? '')
   }
 
-  claimSlot(slotId: number, status: SlotStatus, minutes: number) {
-    return this.me().claimSlot(slotId, status, minutes)
+  claimSlot(slotId: number, status: SlotStatus, minutes: number, deviceName?: string | null) {
+    return this.me().claimSlot(slotId, status, minutes, deviceName)
+  }
+  setSlotDevice(slotId: number, deviceName: string) {
+    return this.me().setSlotDevice(slotId, deviceName)
+  }
+  setMyDevice(deviceName: string) {
+    return this.me().setMyDevice(deviceName)
   }
   releaseSlot(slotId: number) {
     return this.me().releaseSlot(slotId)
@@ -168,6 +181,15 @@ export class MockStudioClient implements StudioClient {
   }
   adminUpdateProfile(userId: string, changes: { role?: Profile['role']; active?: boolean }) {
     return this.me().adminUpdateProfile(userId, changes)
+  }
+  adminDeleteUser(userId: string) {
+    return this.me().adminDeleteUser(userId)
+  }
+  adminUpdateAccount(accountId: number, label: string) {
+    return this.me().adminUpdateAccount(accountId, label)
+  }
+  adminUpdateSettings(changes: { maxSessionMin?: number; holdMinutes?: number }) {
+    return this.me().adminUpdateSettings(changes)
   }
   extendSlot(slotId: number, minutes: number) {
     return this.me().extendSlot(slotId, minutes)
@@ -297,7 +319,22 @@ export class MockStudioClient implements StudioClient {
     s.render_eta = null
     s.prev_status = null
     s.break_until = null
+    s.device_name = null
     this.version++
+  }
+
+  /** Same rules as private.clean_device in SQL: trimmed, or null when empty. */
+  private cleanDevice(name: string | null | undefined): string | null {
+    const v = (name ?? '').trim()
+    if (!v) return null
+    if (!/^[\p{L}\p{N}][\p{L}\p{N} ._'’()-]{0,59}$/u.test(v)) fail('invalid_device')
+    return v
+  }
+
+  private deviceTaken(accountId: number, device: string, exceptSlot: number) {
+    return this.state.slots.some(
+      (x) => x.account_id === accountId && x.id !== exceptSlot && x.device_name?.toLowerCase() === device.toLowerCase(),
+    )
   }
 
   private clearHold(s: Slot) {
@@ -344,13 +381,19 @@ export class MockStudioClient implements StudioClient {
     for (const s of slots) this.assignHold(s, actor)
   }
 
-  private doClaim(uid: string, slotId: number, status: SlotStatus, minutes: number): Slot {
+  private doClaim(uid: string, slotId: number, status: SlotStatus, minutes: number, deviceName: string | null): Slot {
+    const given = this.cleanDevice(deviceName)
     if (!status || status === 'break' || status === 'rendering') fail('invalid_status')
     this.checkMinutes(minutes)
+    const device = given ?? this.profile(uid)?.device_name ?? null
+    if (!device) fail('device_required')
     const s = this.slot(slotId)
     if (s.user_id) fail('slot_taken')
     if (s.hold_user_id && s.hold_user_id !== uid) fail('slot_held')
     if (this.state.slots.some((x) => x.user_id === uid)) fail('already_seated')
+    if (this.deviceTaken(s.account_id, device!, slotId)) fail('device_in_use')
+    // Not saved when the PC is registered to someone else (working at a colleague's desk).
+    if (given && this.deviceOwnerIsFree(given, uid)) this.profile(uid)!.device_name = given
 
     for (const x of this.state.slots) if (x.hold_user_id === uid && x.id !== slotId) this.clearHold(x)
 
@@ -365,11 +408,43 @@ export class MockStudioClient implements StudioClient {
       break_until: null,
       hold_user_id: null,
       hold_until: null,
+      device_name: device,
     })
     this.version++
     this.removeFromQueue(uid)
-    this.log(slotId, uid, 'claim', { status, expected_until: s.expected_until })
+    this.log(slotId, uid, 'claim', { status, expected_until: s.expected_until, device_name: device })
     return s
+  }
+
+  private doSetSlotDevice(uid: string, slotId: number, deviceName: string): Slot {
+    const device = this.cleanDevice(deviceName)
+    if (!device) fail('device_required')
+    const s = this.slot(slotId)
+    if (!s.user_id) fail('slot_free')
+    const me = this.profile(uid)
+    if (s.user_id !== uid && me?.role !== 'admin') fail('not_your_slot')
+    if (this.deviceTaken(s.account_id, device!, slotId)) fail('device_in_use')
+    const from = s.device_name
+    s.device_name = device
+    if (s.user_id === uid && device !== null && this.deviceOwnerIsFree(device, uid)) me!.device_name = device
+    this.version++
+    this.log(slotId, uid, 'device_change', { from, to: device, target_user_id: s.user_id })
+    return s
+  }
+
+  private doSetMyDevice(uid: string, deviceName: string): Profile {
+    const device = this.cleanDevice(deviceName)
+    const p = this.profile(uid)!
+    if (device && !this.deviceOwnerIsFree(device, uid)) fail('device_taken')
+    if (device) p.device_name = device
+    this.version++
+    return p
+  }
+
+  /** Device names are unique across profiles (case-insensitive); true if free or already `uid`'s. */
+  private deviceOwnerIsFree(device: string, uid: string) {
+    const owner = this.state.profiles.find((p) => p.device_name?.toLowerCase() === device.toLowerCase())
+    return !owner || owner.id === uid
   }
 
   private doRelease(uid: string, slotId: number) {
@@ -413,6 +488,48 @@ export class MockStudioClient implements StudioClient {
     }
     this.log(null, uid, 'profile_update', { target_user_id: target, role: p.role, active: p.active })
     return p
+  }
+
+  private doDeleteUser(uid: string, target: string) {
+    this.requireAdmin(uid)
+    if (target === uid) fail('cannot_modify_self')
+    const p = this.profile(target) ?? fail('user_not_found')
+    const seat = this.state.slots.find((s) => s.user_id === target)
+    if (seat) {
+      this.freeSlot(seat)
+      this.log(seat.id, uid, 'force_release', { target_user_id: target, reason: 'deleted' })
+    }
+    for (const s of this.state.slots) if (s.hold_user_id === target) this.clearHold(s)
+    this.removeFromQueue(target)
+    this.log(null, uid, 'user_deleted', { target_user_id: target, name: p.name })
+    this.state.profiles = this.state.profiles.filter((x) => x.id !== target)
+    // Like `on delete set null` in Postgres: history stays, unattributed.
+    for (const a of this.state.activity) if (a.user_id === target) a.user_id = null
+  }
+
+  private doUpdateAccount(uid: string, accountId: number, label: string): Account {
+    this.requireAdmin(uid)
+    const a = this.state.accounts.find((x) => x.id === accountId) ?? fail('not_found')
+    const clean = label.trim()
+    if (!clean || clean.length > 40) fail('invalid_input')
+    a.label = clean
+    this.log(null, uid, 'account_update', { account_id: accountId, label: clean })
+    return a
+  }
+
+  private doUpdateSettings(uid: string, changes: { maxSessionMin?: number; holdMinutes?: number }): Settings {
+    this.requireAdmin(uid)
+    const st = this.state.settings
+    if (changes.maxSessionMin !== undefined) {
+      if (!Number.isInteger(changes.maxSessionMin) || changes.maxSessionMin < 15 || changes.maxSessionMin > 1440) fail('invalid_input')
+      st.max_session_min = changes.maxSessionMin
+    }
+    if (changes.holdMinutes !== undefined) {
+      if (!Number.isInteger(changes.holdMinutes) || changes.holdMinutes < 1 || changes.holdMinutes > 120) fail('invalid_input')
+      st.hold_minutes = changes.holdMinutes
+    }
+    this.log(null, uid, 'settings_update', { max_session_min: st.max_session_min, hold_minutes: st.hold_minutes })
+    return st
   }
 
   private doExtend(uid: string, slotId: number, minutes: number): Slot {

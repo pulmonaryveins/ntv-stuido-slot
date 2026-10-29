@@ -32,6 +32,7 @@ export const STATE_COLORS = {
   free: '#4caf7a',
   reserved: '#e2b33c',
   rendering: '#2bb3a3',
+  in_use: '#e58f4b',
   overdue: '#e0524f',
 } as const
 
@@ -54,8 +55,14 @@ export const ERROR_TEXT: Record<string, string> = {
   slot_free: 'That slot is free.',
   cannot_knock_self: 'You cannot knock on your own slot.',
   knock_rate_limited: 'You knocked recently. Wait 2 minutes between knocks.',
+  device_required: 'Set your device name first (top bar), so the team knows which device holds this seat.',
+  invalid_device: "That device name is not valid. Use letters, numbers and dashes (max 15).",
+  device_taken: 'That device name is registered to another account. Check the name, or ask an admin.',
+  device_in_use: 'That device already holds a seat on this Adobe account.',
   rate_limited: 'Too many actions in a minute. Slow down and try again shortly.',
   user_not_found: 'User not found.',
-  cannot_modify_self: 'You cannot demote or deactivate yourself.',
+  cannot_modify_self: 'You cannot demote, deactivate or delete yourself.',
+  not_found: 'Not found.',
+  invalid_input: 'That value is not allowed.',
   unknown: 'Something went wrong.',
 }
