@@ -193,7 +193,7 @@ function Controls({ focus, reducedMotion }: { focus: XZ | null; reducedMotion: b
   const { camera, size, invalidate } = useThree()
   // Fit the island both ways (it is ~28 units wide and ~24 tall on screen at this angle).
   // Fit the office plus a margin of street and skyline around it.
-  const baseZoom = Math.min(size.width / 44, size.height / 32)
+  const baseZoom = Math.min(size.width / 56, size.height / 40)
   const goal = useRef({ target: new THREE.Vector3(), zoom: baseZoom, animating: false })
 
   useEffect(() => {
@@ -284,10 +284,10 @@ function DayNight({ night }: { night: number }) {
         ref={sun}
         castShadow
         shadow-mapSize={[1024, 1024]}
-        shadow-camera-left={-20}
-        shadow-camera-right={20}
-        shadow-camera-top={20}
-        shadow-camera-bottom={-20}
+        shadow-camera-left={-26}
+        shadow-camera-right={26}
+        shadow-camera-top={26}
+        shadow-camera-bottom={-26}
         shadow-camera-near={1}
         shadow-camera-far={80}
         shadow-bias={-0.0005}

@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { B, C, GEO, GLOW, NIGHT, PAL, mat, rand } from './kit'
-import { ARCADES, BEANBAGS, MEETING_ROOM, COLLAB, CUBE_BACK, KITCHEN, MEETING, PINGPONG, ROOM_BACK, ROOM_X, SOFA_X, TV_POS, buildingX } from './layout'
+import { ARCADES, BEANBAGS, MEETING_ROOM, SUPPLIES, COLLAB, CUBE_BACK, KITCHEN, MEETING, PINGPONG, ROOM_BACK, ROOM_X, SOFA_X, TV_POS, buildingX } from './layout'
 
 const LEFT_WALL = -ROOM_X
 
@@ -229,19 +229,18 @@ function Plant({ p, kind, s = 1 }: { p: [number, number]; kind: PlantKind; s?: n
 }
 
 /** Placed where they frame zones: corners, beside the door and TV, by the pods. */
+// Plants at the corners and between zones, never in a walkway.
 const PLANTS: { p: [number, number]; kind: PlantKind; s?: number }[] = [
-  { p: [-6.6, -8.9], kind: 'fiddle', s: 1.1 },
-  { p: [12.9, -6.9], kind: 'bush' },
-  { p: [-14.3, 0.2], kind: 'snake' },
-  { p: [-14.3, 2.8], kind: 'snake' },
-  { p: [-14.2, 9.3], kind: 'fiddle' },
-  { p: [-10.6, -2.7], kind: 'bush', s: 0.9 },
-  { p: [7.4, -2.7], kind: 'bush', s: 0.9 },
-  { p: [-14.2, 12.9], kind: 'fiddle', s: 1.15 },
-  { p: [14.2, 12.9], kind: 'fiddle', s: 1.15 },
-  { p: [13.9, 7.2], kind: 'snake' },
-  { p: [2.25, -8.4], kind: 'snake' },
-  { p: [-6.2, 12.9], kind: 'bush' },
+  { p: [-9.6, -15.3], kind: 'fiddle', s: 1.15 },
+  { p: [8.6, -15.3], kind: 'snake' },
+  { p: [-19.3, 3.4], kind: 'snake' },
+  { p: [-19.3, 6.2], kind: 'fiddle' },
+  { p: [-19.2, 15.3], kind: 'fiddle', s: 1.15 },
+  { p: [19.2, 15.3], kind: 'fiddle', s: 1.15 },
+  { p: [19.3, 4.6], kind: 'snake' },
+  { p: [19.3, -7.6], kind: 'bush' },
+  { p: [-11, 15.3], kind: 'bush' },
+  { p: [11, 15.3], kind: 'bush' },
 ]
 
 // --- zones ------------------------------------------------------------------
@@ -329,12 +328,26 @@ function Meeting() {
   )
 }
 
-/** Printer and recycling bin beside the server racks. */
+/** Supplies corner on the right edge: printer, recycling bin and two shelves of folders. */
 function PrintStation() {
-  const x = LEFT_WALL + 0.7
-  const z = -7.2
+  const [sx, sz] = SUPPLIES
+  const x = sx - 0.9
+  const z = sz
   return (
     <group>
+      {[-2.2, 2.2].map((dz) => (
+        <group key={dz} position={[sx, 0, sz + dz]}>
+          <B p={[0, 1.1, 0]} s={[0.7, 2.2, 1.6]} c="#7a5a3c" cast />
+          {[0.45, 1.05, 1.65].map((y, i) => (
+            <group key={y}>
+              <B p={[-0.36, y, 0]} s={[0.04, 0.06, 1.5]} c="#4e3a22" />
+              {[-0.5, -0.2, 0.1, 0.4].map((bz, j) => (
+                <B key={bz} p={[-0.2, y + 0.22, bz]} s={[0.3, 0.38, 0.2]} c={['#c0392b', '#2f6db5', '#e9b44c', '#3c8527'][(i + j) % 4]!} />
+              ))}
+            </group>
+          ))}
+        </group>
+      ))}
       <B p={[x, 0.4, z]} s={[1.2, 0.8, 0.8]} c="#e7ebee" cast />
       <B p={[x, 0.9, z]} s={[1.2, 0.2, 0.8]} c={PAL.metalDark} />
       <B p={[x - 0.2, 1.02, z + 0.05]} s={[0.6, 0.04, 0.5]} c={PAL.white} />
@@ -381,7 +394,7 @@ const LIGHT_POOLS: { p: [number, number, number]; k: number }[] = [
   { p: [KITCHEN[0], 3.0, KITCHEN[1] + 1.6], k: 0.9 },
   { p: [MEETING[0], 3.0, MEETING[1]], k: 0.8 },
   { p: [SOFA_X - 1.5, 2.8, TV_POS[1]], k: 0.8 },
-  { p: [12, 3.0, (ARCADES[1]![1] + PINGPONG[1]) / 2], k: 0.8 },
+  { p: [16, 3.0, (ARCADES[1]![1] + PINGPONG[1]) / 2], k: 0.8 },
 ]
 
 /**
@@ -442,10 +455,10 @@ export function Lounge() {
       ))}
       <OfficeLights />
       {/* posters: beside the door and the TV, and between the back windows */}
-      <Poster p={[LEFT_WALL + 0.06, 2.3, 3.7]} w={1.0} h={1.3} seed={1} side />
-      <Poster p={[LEFT_WALL + 0.06, 2.3, 10.7]} w={1.4} h={1.0} seed={2} side />
-      <Poster p={[-5.1, 2.5, ROOM_BACK + 0.06]} w={1.2} h={0.9} seed={3} />
-      <Poster p={[9.6, 2.3, ROOM_BACK + 0.06]} w={1.0} h={0.8} seed={4} />
+      <Poster p={[LEFT_WALL + 0.06, 2.3, 4.9]} w={1.0} h={1.3} seed={1} side />
+      <Poster p={[LEFT_WALL + 0.06, 2.3, -13.6]} w={1.4} h={1.0} seed={2} side />
+      <Poster p={[-4.8, 2.5, ROOM_BACK + 0.06]} w={1.2} h={0.9} seed={3} />
+      <Poster p={[3.9, 2.4, ROOM_BACK + 0.06]} w={1.0} h={0.8} seed={4} />
     </group>
   )
 }

@@ -49,8 +49,10 @@ function room(w: VoxelWorld) {
 
   // High loft windows (above the studio rooms) on the back wall, tall ones on the left wall.
   // Windows at eye level (1.5-3.5 units), placed between the pod signs and clear of the kitchen shelf.
-  for (const [a, b] of [[-12, -9], [0, 4]] as const) w.fill(a, b, 3, 6, backK, backK, 'glass')
-  for (const [a, b] of [[-22, -18], [-12, -8]] as const) w.fill(leftI, leftI, 3, 6, a, b, 'glass')
+  // Back wall: between the kitchen and the render farm, either side of the printer gap, and in the meeting room.
+  for (const [a, b] of [[-17, -12], [9, 15], [22, 26], [34, 38]] as const) w.fill(a, b, 3, 6, backK, backK, 'glass')
+  // Left wall: beside the kitchen and between the kitchen and reception.
+  for (const [a, b] of [[-24, -19], [-14, -10]] as const) w.fill(leftI, leftI, 3, 6, a, b, 'glass')
 
   // Door opening in the left wall with a dark frame.
   const dk = cell(DOOR_Z)

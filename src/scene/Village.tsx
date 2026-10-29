@@ -369,8 +369,8 @@ export function buildVillage(): Out {
   path(o, -70, (PATH_Z0 + PATH_Z1) / 2, 70, (PATH_Z0 + PATH_Z1) / 2, PATH_Z1 - PATH_Z0)
   path(o, 0, PATH_Z1, 0, 30, 2.4)
   // from the main path round to the office door (left wall)
-  path(o, -20, 1.5, -20, PATH_Z0, 2)
-  path(o, -21, 1.5, -15.2, 1.5, 2)
+  path(o, -24.5, 1.5, -24.5, PATH_Z0, 2)
+  path(o, -25.5, 1.5, -20.2, 1.5, 2)
   for (let x = -60; x <= 60; x += 12) if (Math.abs(x) > 4) lanternPost(o, x, PATH_Z0 - 0.8)
 
   // village square across from the office
@@ -395,29 +395,29 @@ export function buildVillage(): Out {
   tower(o, 34, 50)
 
   // farms on the left (where the parking lot was) and behind
-  farm(o, -27, -1, 9, 12, 'wheat', 1)
-  farm(o, -27, 13, 9, 6, 'carrot', 2)
-  farm(o, -40, 4, 8, 20, 'wheat', 3)
-  path(o, -33, -8, -33, 17, 1.6)
-  house(o, -27, -13, 0, 13) // farmer's house
-  for (let i = 0; i < 3; i++) hay(o, -21.5, -9 + i * 1.1)
-  hay(o, -21.5, -8.45, 1.5)
+  farm(o, -31, -1, 9, 12, 'wheat', 1)
+  farm(o, -31, 13, 9, 6, 'carrot', 2)
+  farm(o, -44, 4, 8, 20, 'wheat', 3)
+  path(o, -37.5, -8, -37.5, 17, 1.6)
+  house(o, -31, -14, 0, 13) // farmer's house
+  for (let i = 0; i < 3; i++) hay(o, -25.8, -10 + i * 1.1)
+  hay(o, -25.8, -9.45, 1.5)
 
   // right side: animal pen, pond, a house and barrels where the shops were
-  pen(o, 20, -6, 32, 4)
-  pond(o, 26, 11.5, 8, 5)
-  house(o, 38, -2, -Math.PI / 2, 14, 'big')
-  house(o, 38, 10, -Math.PI / 2, 15)
-  for (let i = 0; i < 3; i++) barrel(o, 35.5, 14.2 + i)
-  path(o, 33, -12, 33, PATH_Z0, 1.6)
+  pen(o, 25, -6, 37, 4)
+  pond(o, 31, 11.5, 8, 5)
+  house(o, 43, -2, -Math.PI / 2, 14, 'big')
+  house(o, 43, 10, -Math.PI / 2, 15)
+  for (let i = 0; i < 3; i++) barrel(o, 40.5, 14.2 + i)
+  path(o, 38, -12, 38, PATH_Z0, 1.6)
 
   // behind the office: a meadow with an allotment, woods, then hills
-  farm(o, -6, -21, 10, 6, 'carrot', 4)
-  farm(o, 8, -21, 10, 6, 'wheat', 5)
-  house(o, 22, -22, 0, 16)
-  house(o, -22, -24, 0, 17, 'big')
-  flowers(o, 0, -27, 21, 8)
-  flowers(o, 14, -28, 33, 6)
+  farm(o, -6, -25, 10, 6, 'carrot', 4)
+  farm(o, 8, -25, 10, 6, 'wheat', 5)
+  house(o, 26, -26, 0, 16)
+  house(o, -26, -28, 0, 17, 'big')
+  flowers(o, 0, -30.5, 21, 8)
+  flowers(o, 15, -31, 33, 6)
 
   // trees: woods behind and on the sides, a few in the village
   let s = 50
@@ -452,7 +452,7 @@ export function buildVillage(): Out {
     [6, 47],
     [-30, 26],
     [30, 26],
-    [-46, 12],
+    [-52, 12],
     [44, 4],
   ] as const)
     flowers(o, x, z, s++)

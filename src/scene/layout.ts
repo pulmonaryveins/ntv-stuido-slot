@@ -3,24 +3,26 @@ import type { Slot } from '../data'
 export type XZ = [number, number]
 
 /** Office floor: x in [-ROOM_X, ROOM_X], z in [ROOM_BACK, ROOM_FRONT]. Walls on the back (-z) and left (-x). */
-export const ROOM_X = 15
-export const ROOM_BACK = -12.5
-export const ROOM_FRONT = 13.5
-export const HUB: XZ = [0, 4.2]
+export const ROOM_X = 20
+export const ROOM_BACK = -16
+export const ROOM_FRONT = 16
+export const HUB: XZ = [0, 5]
 /** Door in the left wall; avatars enter and leave through it. */
 export const DOOR_Z = 1.5
 export const EXIT: XZ = [-ROOM_X + 0.5, DOOR_Z]
 /** Kitchen counter (coffee) against the back wall, back-left corner. Breaks happen here. */
-export const KITCHEN: XZ = [-10.6, -12.05]
-/** Path from the hub to the kitchen, passing left of the workstation pods. */
-export const KITCHEN_ROUTE: XZ[] = [HUB, [-4, -4], [-7, -8.6]]
-/** Meeting room in the front-right corner (glass walls on its back and left sides). */
-export const MEETING: XZ = [11.5, 10.2]
-export const MEETING_ROOM = { x0: 8, x1: ROOM_X, z0: 6.5, z1: ROOM_FRONT, gap0: 6.8, gap1: 11.2 }
-/** Long collaboration table at the front edge, between the lounge and the meeting room. */
-export const COLLAB: XZ = [1, 10.8]
-/** Render farm: server racks in a glass room in the back-right corner. */
-export const RACKS: XZ = [12.9, -12]
+export const KITCHEN: XZ = [-15, -15.55]
+/** Path from the hub to the kitchen, down the aisle left of the workstation pods. */
+export const KITCHEN_ROUTE: XZ[] = [HUB, [-11, 0], [-11, -12]]
+/** Meeting room in the back-right corner: glass on its front and left sides, door on the left. */
+export const MEETING: XZ = [15, -12.5]
+export const MEETING_ROOM = { x0: 10, x1: ROOM_X, z0: ROOM_BACK, z1: -9, gap0: -12.4, gap1: -9.4 }
+/** Long collaboration table at the front centre. */
+export const COLLAB: XZ = [0, 12.5]
+/** Render farm: server racks in a glass room centred on the back wall. */
+export const RACKS: XZ = [0, -15.5]
+/** Supplies corner on the right edge: printer and shelves. */
+export const SUPPLIES: XZ = [19.2, -3]
 
 export type LoungePose = 'sit' | 'beanbag' | 'stand'
 export type LoungeActivity = 'tv' | 'game' | 'chill' | 'pingpong'
@@ -36,16 +38,16 @@ export interface LoungeSpot {
   seatY: number
 }
 
-export const TV_POS: XZ = [-14.9, 7]
-export const SOFA_X = -10.6
+export const TV_POS: XZ = [-ROOM_X + 0.1, 10]
+export const SOFA_X = -15.6
 /** Arcade machines in a row along the right edge, screens facing into the room (-x). */
 export const ARCADES: XZ[] = [
-  [14.2, -5],
-  [14.2, -3.4],
-  [14.2, -1.8],
+  [ROOM_X - 0.8, 7],
+  [ROOM_X - 0.8, 8.6],
+  [ROOM_X - 0.8, 10.2],
 ]
-export const PINGPONG: XZ = [10.2, 1.6]
-export const BEANBAGS: XZ[] = [[-12.4, 11.6], [-10, 11.9]]
+export const PINGPONG: XZ = [14.5, 12.8]
+export const BEANBAGS: XZ[] = [[-17.4, 14.4], [-15, 14.8]]
 
 const W = -Math.PI / 2 // facing -x
 const E = Math.PI / 2 // facing +x
@@ -55,15 +57,15 @@ const arcade = (p: XZ): LoungeSpot => ({ pos: [p[0] - 0.95, p[1]], facing: E, po
 const bean = (p: XZ): LoungeSpot => ({ pos: p, facing: 0, pose: 'beanbag', activity: 'chill', seatY: 0.32 })
 
 export const LOUNGE_SPOTS: LoungeSpot[] = [
-  sofa(6),
+  sofa(9),
   arcade(ARCADES[0]!),
   bean(BEANBAGS[0]!),
   { pos: [PINGPONG[0] - 1.7, PINGPONG[1]], facing: E, pose: 'stand', activity: 'pingpong', seatY: 0 },
-  sofa(7),
+  sofa(10),
   { pos: [PINGPONG[0] + 1.7, PINGPONG[1]], facing: W, pose: 'stand', activity: 'pingpong', seatY: 0 },
   arcade(ARCADES[1]!),
   bean(BEANBAGS[1]!),
-  sofa(8),
+  sofa(11),
   arcade(ARCADES[2]!),
 ]
 
@@ -73,8 +75,8 @@ export function loungeSpot(queueIndex: number): LoungeSpot {
 
 /** Building index 0 = left (first account), 1 = right. */
 export function buildingX(index: number) {
-  // Both pods sit side by side against the back wall, between the kitchen and the render farm.
-  return index === 0 ? -2 : 6.5
+  // Both pods in the middle of the floor, with an aisle between them.
+  return index === 0 ? -5 : 5
 }
 // Grid-aligned to the 0.5-unit voxels: floor spans z in [-6.5, 0].
 export const BUILDING_Z = -3.25
@@ -94,9 +96,9 @@ export interface DeskSpot {
 
 /** Desk placement for each slot, derived from account order and slot number. */
 /** Cubicle geometry: back panel along z = CUBE_BACK, open toward +z (the camera). */
-export const CUBE_BACK = -12.0
+export const CUBE_BACK = -4.0
 // Snapped to the 0.5-unit voxel grid so the carpet tiles line up with the partitions.
-export const CUBE_FRONT = -9
+export const CUBE_FRONT = -1
 export const CUBE_W = 4
 
 export function deskSpots(slots: Slot[], accountIds: number[]): Map<number, DeskSpot> {
@@ -142,13 +144,13 @@ export interface IdleSpot {
 }
 
 const viaAisle = (p: XZ): XZ[] => [HUB, p]
-const viaMeetingDoor = (p: XZ): XZ[] => [HUB, [6.6, 9], [8.6, 9], p]
+const viaMeetingDoor = (p: XZ): XZ[] => [HUB, [10, 0], [9.2, -10.9], [11, -10.9], p]
 const faceTo = (from: XZ, to: XZ) => Math.atan2(to[0] - from[0], to[1] - from[1])
 const around = (c: XZ, dx: number, dz: number, activity: IdleActivity, back: boolean): IdleSpot => {
   const pos: XZ = [c[0] + dx, c[1] + dz]
   // Meeting room: enter through its door; render farm: go round the front of the pods.
   const route: XZ[] =
-    activity === 'meeting' ? viaMeetingDoor(pos) : activity === 'racks' ? [HUB, [11.2, -7], pos] : back ? viaAisle(pos) : [HUB, pos]
+    activity === 'meeting' ? viaMeetingDoor(pos) : activity === 'racks' ? [HUB, [0, 0], [0, -6], pos] : back ? viaAisle(pos) : [HUB, pos]
   return { pos, facing: faceTo(pos, c), activity, pose: 'stand', seatY: 0, route }
 }
 const fromLounge = (l: LoungeSpot): IdleSpot => ({ ...l, route: [HUB, l.pos] })
@@ -165,15 +167,15 @@ export const IDLE_SPOTS: IdleSpot[] = [
   around(MEETING, 0, 2, 'meeting', true),
   around(RACKS, 0, 1.9, 'racks', true),
   around(RACKS, -2.2, 1.9, 'racks', true),
-  roam([-4, 6.5], 0.6),
-  roam([4.5, 6.5], -0.8),
-  roam([-5, 9.5], 2.2),
-  roam([5, 9.5], -2.2),
-  roam([0, 6.8], 0),
-  roam([-7.5, 2.8], 1.4),
-  roam([7.5, 2.4], -1.4),
-  roam([-4.8, 12.3], 3),
-  roam([5.8, 12.6], 3.4),
+  roam([-6, 5], 0.6),
+  roam([6, 5], -0.8),
+  roam([-8, 8.5], 2.2),
+  roam([8, 8.5], -2.2),
+  roam([0, 7.8], 0),
+  roam([-11, 3], 1.4),
+  roam([11, 3], -1.4),
+  roam([-6, 13], 3),
+  roam([7, 13.5], 3.4),
 ]
 
 export function idleSpot(choice: number): IdleSpot {

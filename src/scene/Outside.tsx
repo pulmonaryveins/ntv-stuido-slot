@@ -28,7 +28,7 @@ function Ground() {
   const grass = useMemo(() => pixelTexture(['#6dbf4b', '#64b345', '#78c957', '#5aa83c'], 1, 120), [])
   const cobble = useMemo(() => {
     const t = pixelTexture(['#8f8f8f', '#7d7d7d', '#9b9b9b', '#727272'], 2, 1)
-    t.repeat.set(36, 32)
+    t.repeat.set(46, 38)
     return t
   }, [])
   return (
@@ -38,8 +38,8 @@ function Ground() {
         <meshStandardMaterial map={grass} roughness={1} />
       </mesh>
       {/* cobblestone yard around the office */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0.5]} receiveShadow>
-        <planeGeometry args={[36, 33]} />
+      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
+        <planeGeometry args={[46, 38]} />
         <meshStandardMaterial map={cobble} roughness={1} />
       </mesh>
     </group>
