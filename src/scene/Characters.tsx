@@ -106,7 +106,8 @@ const templateCache = new WeakMap<object, THREE.Object3D[]>()
 
 /** Suspends until the pack is loaded; returns one template per character. */
 export function useCharacterTemplates(): THREE.Object3D[] {
-  const { scene } = useGLTF(CHARACTER_URL, true, true, extendLoader)
+  // No Draco/Meshopt: the pack is uncompressed, and the Meshopt WASM decoder is blocked by the CSP.
+  const { scene } = useGLTF(CHARACTER_URL, false, false, extendLoader)
   let templates = templateCache.get(scene)
   if (!templates) {
     templates = extractTemplates(scene)
