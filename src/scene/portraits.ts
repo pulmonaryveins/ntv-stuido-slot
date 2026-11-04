@@ -8,7 +8,8 @@ import { CHARACTER_URL, extendLoader, extractTemplates, instantiate } from './Ch
  * Loaded lazily (dynamic import) so the list view never pays for three.js up front.
  */
 
-const CACHE_KEY = 'ss.portraits.v1'
+// v2: v1 could hold untextured (white) heads rendered while the CSP blocked the textures.
+const CACHE_KEY = 'ss.portraits.v2'
 const SIZE = 96
 
 function readCache(): string[] | null {
@@ -44,6 +45,12 @@ export async function loadPortraits(): Promise<string[]> {
   extendLoader(loader as never)
   const gltf = await loader.loadAsync(CHARACTER_URL)
   const templates = extractTemplates(gltf.scene)
+  // Only cache when every texture decoded; otherwise white heads would stick until the key changes.
+  let textured = true
+  gltf.scene.traverse((o) => {
+    const m = (o as THREE.Mesh).material
+    for (const x of m ? (Array.isArray(m) ? m : [m]) : []) if (!(x as THREE.MeshStandardMaterial).map?.image) textured = false
+  })
 
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: false, preserveDrawingBuffer: true })
   renderer.setSize(SIZE, SIZE)
@@ -78,6 +85,6 @@ export async function loadPortraits(): Promise<string[]> {
   }
   renderer.dispose()
   renderer.forceContextLoss()
-  if (out.length) writeCache(out)
+  if (out.length && textured) writeCache(out)
   return out
 }
