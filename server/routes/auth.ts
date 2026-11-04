@@ -159,9 +159,11 @@ export async function reset(request: Request): Promise<Response> {
   if (!email || !EMAIL_RE.test(email)) return fail('invalid_input', 400, 'Enter a valid email.')
   if (!allowAttempt(`reset:${clientIp(request)}`, 5)) return fail('rate_limited', 429, 'Too many emails. Try again later.')
   const store = new Map<string, string>()
-  await pkceClient(store).auth.resetPasswordForEmail(email, {
+  const { error } = await pkceClient(store).auth.resetPasswordForEmail(email, {
     redirectTo: `${requestOrigin(request)}/api/auth/callback?next=recovery`,
   })
+  // Still answer "ok" (no account enumeration), but leave a trace for SMTP / rate-limit problems.
+  if (error) console.error('[auth/reset]', error.status, error.code, error.message)
   const verifier = store.get(VERIFIER_KEY)
   return withCookies(json({ ok: true }), [verifier ? await pkceCookie(request, verifier) : undefined])
 }
