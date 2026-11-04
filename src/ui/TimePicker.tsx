@@ -85,7 +85,7 @@ function Column({
         ref={ref}
         role="radiogroup"
         aria-label={label}
-        className="relative h-32 snap-y overflow-y-auto border-2 border-line bg-surface-2 p-1"
+        className="relative h-32 snap-y overflow-y-auto border border-line bg-surface-2 p-1"
       >
         {items.map((n) => {
           const on = n === selected

@@ -3,7 +3,11 @@ import { mockClient } from '../data'
 import { backendMode } from '../lib/backend'
 import { useAuth } from '../store/auth'
 import { useStudio, type Page, type Speed, type TimeMode, type View } from '../store/studio'
-import { Segmented, Select } from './controls'
+import { Segmented, Select, Tip } from './controls'
+import { useNow } from './useNow'
+import { slotAccent } from './SlotCard'
+import { deriveSlotView } from '../lib/slotState'
+import { formatClock } from '../lib/format'
 import { UserAvatar } from './UserAvatar'
 import { PixelIcon, type IconName } from './PixelIcon'
 
@@ -12,33 +16,28 @@ export function TopBar() {
   const me = s.snapshot?.profiles.find((p) => p.id === s.actorId)
   const isAdmin = me?.role === 'admin'
   const pendingCount = isAdmin ? (s.snapshot?.profiles.filter((p) => !p.active).length ?? 0) : 0
-  const seatsFree = s.snapshot ? s.snapshot.slots.filter((x) => !x.user_id && !x.hold_user_id).length : null
+  const now = useNow(30_000)
 
   return (
-    <header className="on-dark border-b-2 border-black bg-black">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2 sm:px-4">
-        <div className="flex items-center gap-2.5">
-          <span aria-hidden className="px-btn grid size-9 place-items-center bg-accent">
-            <PixelIcon name="brush" size={20} />
+    <header className="on-dark border-b border-white/10 bg-[#1f1108]">
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2 px-3 py-2.5 sm:px-5">
+        <div className="flex items-center gap-3">
+          <span aria-hidden className="px-btn grid size-10 place-items-center bg-accent">
+            <PixelIcon name="brush" size={22} />
           </span>
           <div className="leading-tight">
-            <h1 className="text-base font-semibold">Studio Slots</h1>
-            {seatsFree !== null && (
-              <p className="text-xs text-muted">
-                <span className={seatsFree ? 'text-free' : 'text-reserved'}>●</span>{' '}
-                {seatsFree ? `${seatsFree} seat${seatsFree === 1 ? '' : 's'} free` : 'All seats taken'}
-              </p>
-            )}
+            <h1 className="text-lg">Studio Slots</h1>
+            <p className="text-[11px] text-muted">Adobe seat board</p>
           </div>
           {mockClient && (
-            <span className="border-2 border-line bg-reserved px-1.5 text-[10px] font-semibold uppercase tracking-wide text-black">
+            <span className="border border-line bg-reserved px-1.5 text-[10px] font-semibold text-black">
               Mock
             </span>
           )}
         </div>
 
         {isAdmin && (
-          <nav aria-label="Main" className="flex items-center gap-1">
+          <nav aria-label="Main" className="flex h-11 items-stretch gap-1 border-l border-white/10 pl-4">
             <NavTab page="board" current={s.page} onClick={s.setPage} icon="block">
               Board
             </NavTab>
@@ -48,7 +47,12 @@ export function TopBar() {
           </nav>
         )}
 
-        <div className="ml-auto flex flex-wrap items-center gap-2">
+        {s.snapshot && <SeatStrip />}
+
+        <div className="ml-auto flex flex-wrap items-center gap-2.5">
+          <span className="hidden font-pixel text-sm tabular-nums text-muted xl:inline" aria-label="Current time">
+            {formatClock(now)}
+          </span>
           {s.page === 'board' && (
             <>
               <Segmented<View>
@@ -57,7 +61,7 @@ export function TopBar() {
                 value={s.view}
                 onChange={s.setView}
                 options={[
-                  { value: '3d', label: <><PixelIcon name="block" size={14} />3D</>, title: s.webgl ? '3D studio' : '3D unavailable (no WebGL)', disabled: !s.webgl },
+                  { value: '3d', label: <><PixelIcon name="brush" size={14} />Office</>, title: 'Office view' },
                   { value: 'list', label: <><PixelIcon name="list" size={14} />List</>, title: 'List view' },
                 ]}
               />
@@ -82,11 +86,11 @@ export function TopBar() {
 
       {mockClient && (
         <div
-          className="flex flex-wrap items-center gap-2 border-t-2 border-dashed border-accent/60 bg-accent/5 px-3 py-1.5 sm:px-4"
+          className="flex flex-wrap items-center gap-2 border-t border-dashed border-accent/60 bg-accent/5 px-3 py-1.5 sm:px-4"
           role="group"
           aria-label="Dev tools (mock data only)"
         >
-          <span className="text-[10px] font-bold uppercase tracking-wide text-accent">Dev tools</span>
+          <span className="text-[10px] font-bold text-accent">Dev tools</span>
           <label className="flex items-center gap-1.5 text-xs font-medium">
             <input type="checkbox" checked={s.demo} onChange={(e) => s.setDemo(e.target.checked)} className="size-4 accent-[var(--accent)]" />
             Live demo
@@ -105,6 +109,57 @@ export function TopBar() {
         </div>
       )}
     </header>
+  )
+}
+
+/** Live seat strip: one block per seat (portrait when taken), free count and waiting count. */
+function SeatStrip() {
+  const snapshot = useStudio((s) => s.snapshot)!
+  const openClaim = useStudio((s) => s.openClaim)
+  const setPage = useStudio((s) => s.setPage)
+  const now = useNow(5_000)
+  const free = snapshot.slots.filter((x) => !x.user_id && !x.hold_user_id).length
+  return (
+    <div className="hidden items-center gap-3 border-l border-white/10 pl-5 lg:flex" aria-label="Seats">
+      <div className="flex gap-2">
+        {snapshot.accounts.map((a) => (
+          <div key={a.id} className="flex gap-1">
+            {snapshot.slots
+              .filter((sl) => sl.account_id === a.id)
+              .sort((x, y) => x.slot_number - y.slot_number)
+              .map((sl) => {
+                const v = deriveSlotView(sl, now)
+                const holder = snapshot.profiles.find((p) => p.id === (sl.user_id ?? sl.hold_user_id))
+                const isFree = !sl.user_id && !sl.hold_user_id
+                const label = `${a.label} · Slot ${sl.slot_number}: ${isFree ? 'free' : v.kind === 'reserved' ? `held for ${holder?.name ?? 'someone'}` : `${holder?.name ?? 'in use'}${sl.device_name ? ` on ${sl.device_name}` : ''}`}`
+                return (
+                  <Tip key={sl.id} content={label} side="bottom">
+                    <button
+                      type="button"
+                      aria-label={label}
+                      onClick={() => {
+                        setPage('board')
+                        if (isFree) openClaim(sl.id)
+                      }}
+                      className="grid size-8 place-items-center border border-line hover:brightness-110"
+                      style={{ background: slotAccent(sl, v) }}
+                    >
+                      {holder ? <UserAvatar profile={holder} size={20} className="border" /> : null}
+                    </button>
+                  </Tip>
+                )
+              })}
+          </div>
+        ))}
+      </div>
+      <div className="leading-tight">
+        <p className="text-sm font-semibold">
+          <span className={free ? 'text-free' : 'text-reserved'}>{free}</span>
+          <span className="text-muted">/{snapshot.slots.length}</span> free
+        </p>
+        <p className="text-[11px] text-muted">{snapshot.queue.length ? `${snapshot.queue.length} waiting` : 'No one waiting'}</p>
+      </div>
+    </div>
   )
 }
 
@@ -129,8 +184,8 @@ function NavTab({
       type="button"
       aria-current={on ? 'page' : undefined}
       onClick={() => onClick(page)}
-      className={`font-pixel inline-flex items-center gap-1.5 border-b-2 px-2.5 py-1.5 text-sm font-semibold uppercase ${
-        on ? 'border-accent text-ink' : 'border-transparent text-muted hover:text-ink'
+      className={`font-pixel inline-flex items-center gap-2 border-b px-3 text-sm ${
+        on ? 'border-accent bg-white/[0.06] text-ink' : 'border-transparent text-muted hover:bg-white/[0.04] hover:text-ink'
       }`}
     >
       <PixelIcon name={icon} size={14} />
@@ -157,7 +212,7 @@ function AccountMenu({ id, name, color, role, device }: { id: string; name: stri
     <Menu.Root modal={false}>
       <Menu.Trigger
         aria-label={`Account menu for ${name}`}
-        className="group inline-flex h-11 items-center gap-2.5 border-2 border-line bg-surface-2 pl-1 pr-3 text-sm shadow-[inset_0_-3px_0_var(--lip),inset_0_2px_0_var(--hi)] hover:brightness-110 data-[state=open]:outline-2 data-[state=open]:outline-accent"
+        className="group inline-flex h-11 items-center gap-2.5 border border-line bg-surface-2 pl-1 pr-3 text-sm hover:brightness-110 data-[state=open]:outline-2 data-[state=open]:outline-accent"
       >
         <UserAvatar profile={{ id, name, avatar_color: color }} size={34} />
         <span className="hidden text-left leading-tight sm:block">

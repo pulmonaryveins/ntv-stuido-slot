@@ -10,7 +10,7 @@ type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 const VARIANTS: Record<Variant, string> = {
   primary: 'px-btn bg-accent text-accent-ink hover:brightness-110',
   secondary: 'px-btn bg-surface-2 text-ink hover:brightness-105',
-  ghost: 'border-2 border-transparent bg-transparent text-ink hover:border-line hover:bg-surface-2',
+  ghost: 'border border-transparent bg-transparent text-ink hover:border-line hover:bg-surface-2',
   danger: 'px-btn bg-overdue text-white hover:brightness-110',
 }
 
@@ -98,7 +98,7 @@ export function Segmented<T extends string>({
       value={value}
       disabled={disabled}
       onValueChange={(v) => v && onChange(v as T)}
-      className={`inline-flex border-2 border-line bg-surface-2 shadow-[inset_0_2px_0_var(--lo)] ${size === 'lg' ? 'h-11 gap-1 p-1' : 'p-0.5'}`}
+      className={`inline-flex border border-line ${size === 'lg' ? 'h-11 gap-1 bg-surface p-1' : 'bg-surface-2 p-0.5'}`}
     >
       {options.map((o) => (
         <Tip key={o.value} content={o.title} side="bottom">
@@ -107,7 +107,7 @@ export function Segmented<T extends string>({
           value={o.value}
           aria-label={o.title}
           disabled={o.disabled}
-          className={`inline-flex items-center justify-center gap-1.5 font-semibold text-muted hover:text-ink data-[state=on]:bg-accent data-[state=on]:text-accent-ink data-[state=on]:shadow-[inset_0_-3px_0_var(--lip),inset_0_2px_0_rgba(255,255,255,0.28)] disabled:cursor-not-allowed disabled:opacity-40 ${
+          className={`inline-flex items-center justify-center gap-1.5 font-semibold text-muted hover:text-ink data-[state=on]:bg-accent data-[state=on]:text-accent-ink data-[state=on]: disabled:cursor-not-allowed disabled:opacity-40 ${
             size === 'lg' ? 'min-w-11 px-3 text-sm data-[state=on]:outline-2 data-[state=on]:outline-black' : 'px-2 py-0.5 text-xs'
           }`}
         >
@@ -153,7 +153,7 @@ export function Select<T extends string>({
       <Tip content={title}>
       <RSelect.Trigger
         aria-label={label}
-        className={`group inline-flex items-center justify-between gap-2 border-2 border-line bg-surface-2 text-left text-ink shadow-[inset_2px_2px_0_var(--hi),inset_-2px_-2px_0_var(--lo)] hover:brightness-110 data-[state=open]:border-accent disabled:cursor-not-allowed disabled:opacity-45 ${
+        className={`group inline-flex items-center justify-between gap-2 border border-line bg-surface-2 text-left text-ink hover:brightness-110 data-[state=open]:border-accent disabled:cursor-not-allowed disabled:opacity-45 ${
           size === 'sm' ? 'min-w-24 px-2 py-0.5 text-sm' : 'min-w-36 px-2.5 py-1.5 text-sm'
         } ${className}`}
       >
@@ -218,10 +218,10 @@ function Check() {
 
 /** A user's color dot. */
 export function Dot({ color }: { color: string }) {
-  return <span aria-hidden className="inline-block size-2.5 shrink-0 rounded-full" style={{ background: color }} />
+  return <span aria-hidden className="inline-block size-2.5 shrink-0" style={{ background: color }} />
 }
 
-const floatingClass = 'on-dark z-50 border-2 border-black bg-[#1e1e1f] text-ink shadow-[inset_0_2px_0_rgba(255,255,255,0.12),4px_4px_0_rgba(0,0,0,0.35)]'
+const floatingClass = 'on-dark z-50 border border-line bg-[#3d2414] text-ink'
 
 /** Hover/focus hint in the block style (replaces the browser's plain `title` tooltip). */
 export function Tip({
@@ -269,8 +269,8 @@ export function Popover({
       <RPopover.Portal>
         <RPopover.Content side={side} align={align} sideOffset={8} collisionPadding={12} className={`${floatingClass} ss-pop ${width} p-3 text-sm`}>
           {title && (
-            <div className="mb-2 flex items-center gap-2 border-b-2 border-black pb-2">
-              <span className="font-pixel text-sm uppercase">{title}</span>
+            <div className="mb-2 flex items-center gap-2 border-b border-line pb-2">
+              <span className="font-pixel text-sm">{title}</span>
               <RPopover.Close aria-label="Close" className="ml-auto px-1 text-muted hover:text-ink">
                 ✕
               </RPopover.Close>
@@ -293,7 +293,7 @@ export function InfoTip({ label, title, children }: { label: string; title?: Rea
         <button
           type="button"
           aria-label={label}
-          className="inline-grid size-5 shrink-0 place-items-center border-2 border-line bg-surface-2 align-middle text-[11px] font-bold leading-none text-muted hover:bg-accent hover:text-accent-ink"
+          className="inline-grid size-5 shrink-0 place-items-center border border-line bg-surface-2 align-middle text-[11px] font-bold leading-none text-muted hover:bg-accent hover:text-accent-ink"
         >
           ?
         </button>

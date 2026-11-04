@@ -66,7 +66,7 @@ export function ActivityPage({ snapshot }: { snapshot: Snapshot }) {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search"
           aria-label="Search activity"
-          className="ml-auto w-full border-2 border-line bg-surface-2 px-2.5 py-1.5 text-sm sm:w-48"
+          className="ml-auto w-full border border-line bg-surface-2 px-2.5 py-1.5 text-sm sm:w-48"
         />
       </div>
 
@@ -82,7 +82,7 @@ export function ActivityPage({ snapshot }: { snapshot: Snapshot }) {
               lastDay = day
               return (
                 <li key={e.id}>
-                  {header && <div className="px-2 pb-1 pt-3 text-xs font-semibold uppercase tracking-wide text-muted first:pt-1">{day}</div>}
+                  {header && <div className="px-2 pb-1 pt-3 text-xs font-semibold text-muted first:pt-1">{day}</div>}
                   <div className="flex items-center gap-2 px-2 py-1.5 hover:bg-surface-2">
                     <span className="w-16 shrink-0 font-mono text-xs text-muted">{formatClock(at)}</span>
                     <PixelIcon name={d.icon} size={14} />

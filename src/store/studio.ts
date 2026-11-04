@@ -104,7 +104,7 @@ let stopDemo: (() => void) | null = null
 export const useStudio = create<StudioState>((set, get) => ({
   snapshot: null,
   loadError: null,
-  view: webgl ? readPref<View>('ss.view', ['3d', 'list'], narrow ? 'list' : '3d') : 'list',
+  view: readPref<View>('ss.view', ['3d', 'list'], narrow ? 'list' : '3d'),
   page: 'board',
   theme: readPref<Theme>('ss.theme', ['light', 'dark'], prefersDark ? 'dark' : 'light'),
   deviceDialog: false,
@@ -122,7 +122,6 @@ export const useStudio = create<StudioState>((set, get) => ({
   portraits: null,
 
   setView: (view) => {
-    if (view === '3d' && !get().webgl) return
     writePref('ss.view', view)
     set({ view })
   },

@@ -86,14 +86,14 @@ export function UsersPage({ snapshot }: { snapshot: Snapshot }) {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search name or device"
           aria-label="Search users"
-          className="ml-auto w-full border-2 border-line bg-surface-2 px-2.5 py-1.5 text-sm sm:w-56"
+          className="ml-auto w-full border border-line bg-surface-2 px-2.5 py-1.5 text-sm sm:w-56"
         />
       </div>
 
       <div className="px-panel overflow-x-auto">
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="text-xs text-muted">
-            <tr className="border-b-2 border-line">
+            <tr className="border-b border-line">
               <th scope="col" className="px-3 py-2 font-medium">Name</th>
               <th scope="col" className="px-3 py-2 font-medium">Device</th>
               <th scope="col" className="px-3 py-2 font-medium">Seat now</th>
@@ -188,7 +188,7 @@ export function UsersPage({ snapshot }: { snapshot: Snapshot }) {
         }
       >
         {confirm && snapshot.slots.some((s) => s.user_id === confirm.user.id) && (
-          <p className="mb-3 border-2 border-reserved/60 bg-reserved/10 px-2.5 py-2 text-sm">
+          <p className="mb-3 border border-reserved/60 bg-reserved/10 px-2.5 py-2 text-sm">
             They hold a seat right now. It will be freed; remember to sign their device out in Adobe.
           </p>
         )}

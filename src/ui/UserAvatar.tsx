@@ -38,13 +38,13 @@ export function UserAvatar({
       alt=""
       aria-hidden
       draggable={false}
-      className={`inline-block shrink-0 border-2 border-black object-cover [image-rendering:pixelated] ${className}`}
+      className={`inline-block shrink-0 border border-line object-cover [image-rendering:pixelated] ${className}`}
       style={style}
     />
   ) : (
     <span
       aria-hidden
-      className={`inline-grid shrink-0 place-items-center border-2 border-black font-bold leading-none text-white ${className}`}
+      className={`inline-grid shrink-0 place-items-center border border-line font-bold leading-none text-white ${className}`}
       style={{ ...style, fontSize: Math.max(9, size * 0.45) }}
     >
       {profile.name.slice(0, 1).toUpperCase()}

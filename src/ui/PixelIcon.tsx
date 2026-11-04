@@ -111,21 +111,23 @@ const ICONS = {
     pal: { s: '#9aa3ad', b: '#6b4423', c: '#ec7a5c' },
   },
   // free: a fresh grass-topped block
+  // seat / desk: computer monitor on a stand
   block: {
     rows: [
-      '.kkkkkkkkkk.',
-      '.kggggggggk.',
-      '.kgGggGgggk.',
-      '.kGGGGGGGGk.',
-      '.kddDdddDdk.',
-      '.kdddddddDk.',
-      '.kdDddddddk.',
-      '.kddddDdddk.',
-      '.kdddddddDk.',
-      '.kDdddDdddk.',
-      '.kkkkkkkkkk.',
+      'kkkkkkkkkkkk',
+      'kssssssssssk',
+      'ksbbbbbbbbsk',
+      'ksbHbbbbbbsk',
+      'ksbbbbbbbbsk',
+      'ksbbbbbbbbsk',
+      'ksbbbbbbbbsk',
+      'kssssssssssk',
+      'kkkkkkkkkkkk',
+      '....kssk....',
+      '..kkkkkkkk..',
+      '..kssssssk..',
     ],
-    pal: { g: '#6cc04a', G: '#4f9a37', d: '#9b6b43', D: '#7a5232' },
+    pal: { s: '#d8d8d8', b: '#4a8fd6', H: '#bfe2ff' },
   },
   // reserved: ticket
   ticket: {

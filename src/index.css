@@ -1,50 +1,51 @@
-@import '@fontsource/pixelify-sans/400.css';
-@import '@fontsource/pixelify-sans/600.css';
+@import '@fontsource/dotgothic16/400.css';
 @import '@fontsource-variable/noto-sans';
 @import '@fontsource-variable/jetbrains-mono';
 @import 'tailwindcss';
 
-/* Minecraft pixel font (public/fonts/Minecraft.ttf). Pixelify Sans stands in until the file is there. */
-@font-face {
-  font-family: 'Minecraft';
-  src: url('/fonts/Minecraft.ttf') format('truetype');
-  font-display: swap;
-}
-
 @custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 
-/* Blocky game-UI theme: flat stone-grey surfaces, black outlines, chunky green buttons with a lip. */
+/*
+ * Farm-sim pixel theme: golden parchment menus in orange-brown wooden frames on a wood
+ * background, dark brown lettering, green confirm buttons, stepped pixel corners.
+ */
 :root {
-  --bg: #f4f4f4;
-  --bg-2: #ebebeb;
-  --surface: #ffffff;
-  --surface-2: #e6e8eb;
-  --border: #1e1e1f;
-  --text: #1e1e1f;
-  --muted: #5c5d61;
-  --accent: #3c8527; /* grass green */
-  --accent-ink: #ffffff;
-  --ring: var(--accent);
-  --hi: rgba(255, 255, 255, 0.75);
-  --lo: rgba(0, 0, 0, 0.16);
-  --lip: rgba(0, 0, 0, 0.32);
+  --bg: #d8a35e; /* light wood */
+  --bg-2: #c9924f;
+  --surface: #fbe6b5; /* parchment */
+  --surface-2: #f2d08f;
+  --border: #8a4a1f;
+  --text: #4a2511;
+  --muted: #8a5a2e;
+  --accent: #5f9a36; /* confirm green */
+  --accent-ink: #fff8e6;
+  --ring: #f2c94c;
+  --frame: #5b2d0e;
+  --frame-mid: #b8662c;
+  --frame-hi: #e89a4e;
+  --hi: rgba(255, 255, 255, 0.45);
+  --lo: rgba(74, 37, 17, 0.2);
+  --lip: rgba(60, 25, 5, 0.4);
   color-scheme: light;
 }
 
 /* Dark tokens: the dark theme, plus always-dark areas (header, sign-in side panel). */
 [data-theme='dark'],
 .on-dark {
-  --bg: #1e1e1f;
-  --bg-2: #1a1a1b;
-  --surface: #313233;
-  --surface-2: #48494a;
-  --border: #000000;
-  --text: #ffffff;
-  --muted: #b1b2b5;
-  --accent: #3c8527;
-  --accent-ink: #ffffff;
-  --ring: #6cc349;
-  --hi: rgba(255, 255, 255, 0.14);
+  --bg: #2a170b; /* dark wood */
+  --bg-2: #1f1108;
+  --surface: #3d2414;
+  --surface-2: #523019;
+  --border: #120802;
+  --text: #fbe6b5;
+  --muted: #d4a874;
+  --accent: #6aab3c;
+  --accent-ink: #fff8e6;
+  --ring: #f2c94c;
+  --frame: #120802;
+  --frame-mid: #8a4a1f;
+  --frame-hi: #c77a3a;
+  --hi: rgba(255, 230, 180, 0.14);
   --lo: rgba(0, 0, 0, 0.4);
   --lip: rgba(0, 0, 0, 0.45);
   color-scheme: dark;
@@ -54,9 +55,9 @@
 }
 
 @theme {
-  --font-pixel: 'Minecraft', 'Pixelify Sans', ui-monospace, monospace;
-  --font-sans: 'Noto Sans Variable', ui-sans-serif, system-ui, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Mono', monospace;
+  --font-pixel: 'DotGothic16', 'Noto Sans Variable', ui-monospace, sans-serif;
+  --font-sans: 'DotGothic16', 'Noto Sans Variable', ui-sans-serif, system-ui, sans-serif;
+  /* pixel UI: square corners everywhere (the notches come from clip-path) */
   --radius-xs: 0px;
   --radius-sm: 0px;
   --radius-md: 0px;
@@ -64,7 +65,7 @@
   --radius-xl: 0px;
   --radius-2xl: 0px;
   --radius-3xl: 0px;
-  --radius-full: 0px;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Mono', monospace;
 }
 
 @theme inline {
@@ -102,38 +103,30 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Pixel font for UI chrome (its capitals stay crisp at small sizes); body text stays readable. */
+/* Headings and chrome: semibold sans, normal case. */
+body,
 h1,
 h2,
 h3,
 legend,
-.px-btn,
-.font-pixel,
-[role='radio'],
-[role='tab'] {
-  font-family: var(--font-pixel);
-  letter-spacing: 0.04em;
-  /* The Minecraft font has one weight: never fake a bold (it smears the pixels). */
+.font-pixel {
   font-weight: 400;
   font-synthesis: none;
+  letter-spacing: 0.02em;
 }
-/* Pixel fonts are crisp at whole multiples of their grid; 16px is the Minecraft font's native size. */
-.px-btn {
-  font-size: 1rem;
-  line-height: 1.1;
+/* bold text in the pixel font: a 1px text shadow instead of a smeared faux bold */
+.font-semibold,
+.font-bold,
+strong,
+b {
+  font-weight: 400;
+  text-shadow: 0.5px 0 0 currentColor;
 }
+
 /* Clock times and counts line up in columns. */
 .tabular-nums,
 time {
   font-variant-numeric: tabular-nums;
-}
-h2,
-h3,
-legend,
-.px-btn,
-[role='radio'],
-[role='tab'] {
-  text-transform: uppercase;
 }
 
 /* Block-style scrollbars: square thumb with a bevel, inset track. */
@@ -147,21 +140,16 @@ legend,
 }
 ::-webkit-scrollbar-track {
   background: var(--surface-2);
-  box-shadow: inset 2px 2px 0 var(--lo);
 }
 ::-webkit-scrollbar-thumb {
-  background: var(--muted);
-  border: 2px solid var(--border);
-  box-shadow:
-    inset 2px 2px 0 var(--hi),
-    inset -2px -2px 0 var(--lo);
+  background: var(--frame-mid);
+  border: 2px solid var(--frame);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--accent);
+  background: var(--frame-hi);
 }
 ::-webkit-scrollbar-thumb:active {
   background: var(--accent);
-  box-shadow: inset 2px 2px 0 var(--lo);
 }
 ::-webkit-scrollbar-corner {
   background: transparent;
@@ -188,45 +176,80 @@ legend,
 }
 
 @layer components {
-/* A flat card: thin black outline and a 2px top highlight. */
+/*
+ * Panel: parchment inside a dark wood frame (outer line, wood band, light inner edge) with
+ * stepped pixel corners.
+ */
 .px-panel {
+  --notch: 4px;
+  --surface: #fbe6b5;
+  --surface-2: #f2d08f;
+  --border: #c0874e;
+  --text: #4a2511;
+  --muted: #8a5a2e;
+  --lo: rgba(74, 37, 17, 0.2);
+  color: var(--text);
   background: var(--surface);
-  border: 2px solid var(--border);
-  box-shadow: inset 0 2px 0 var(--hi);
+  border: 3px solid #5b2d0e;
+  box-shadow:
+    inset 0 0 0 3px #b8662c,
+    inset 0 0 0 4px #e89a4e;
+  clip-path: polygon(
+    0 var(--notch), calc(var(--notch) / 2) var(--notch), calc(var(--notch) / 2) calc(var(--notch) / 2), var(--notch) calc(var(--notch) / 2), var(--notch) 0,
+    calc(100% - var(--notch)) 0, calc(100% - var(--notch)) calc(var(--notch) / 2), calc(100% - var(--notch) / 2) calc(var(--notch) / 2), calc(100% - var(--notch) / 2) var(--notch), 100% var(--notch),
+    100% calc(100% - var(--notch)), calc(100% - var(--notch) / 2) calc(100% - var(--notch)), calc(100% - var(--notch) / 2) calc(100% - var(--notch) / 2), calc(100% - var(--notch)) calc(100% - var(--notch) / 2), calc(100% - var(--notch)) 100%,
+    var(--notch) 100%, var(--notch) calc(100% - var(--notch) / 2), calc(var(--notch) / 2) calc(100% - var(--notch) / 2), calc(var(--notch) / 2) calc(100% - var(--notch)), 0 calc(100% - var(--notch))
+  );
 }
 
-/* A chunky pressable button: dark bottom lip, light top edge; presses down on click. */
+/* Pixel button: dark outline, light top edge, dark bottom lip, stepped corners; presses down. */
 .px-btn {
-  border: 2px solid var(--border);
+  --notch: 2px;
+  border: 2px solid var(--frame);
   box-shadow:
-    inset 0 -4px 0 var(--lip),
-    inset 0 2px 0 rgba(255, 255, 255, 0.28);
+    inset 0 2px 0 rgba(255, 255, 255, 0.35),
+    inset 0 -3px 0 var(--lip);
+  clip-path: polygon(
+    0 var(--notch), var(--notch) var(--notch), var(--notch) 0, calc(100% - var(--notch)) 0, calc(100% - var(--notch)) var(--notch), 100% var(--notch),
+    100% calc(100% - var(--notch)), calc(100% - var(--notch)) calc(100% - var(--notch)), calc(100% - var(--notch)) 100%, var(--notch) 100%, var(--notch) calc(100% - var(--notch)), 0 calc(100% - var(--notch))
+  );
   transition: filter 80ms;
 }
 .px-btn:not([aria-disabled='true']):not(:disabled):hover {
-  filter: brightness(1.12);
+  filter: brightness(1.08);
 }
 .px-btn:not([aria-disabled='true']):not(:disabled):active {
   transform: translateY(2px);
   box-shadow:
-    inset 0 -2px 0 var(--lip),
-    inset 0 2px 0 rgba(0, 0, 0, 0.2);
+    inset 0 2px 0 var(--lip),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.2);
 }
 
+/* Small badge (chips, counts). */
+.px-badge {
+  border: 2px solid var(--frame);
+}
+
+/* Inputs: inset parchment wells. */
+input:not([type='checkbox']):not([type='radio']),
+select,
+textarea {
+  box-shadow: inset 0 2px 0 var(--lo);
+}
 }
 
 /* Segmented "XP bar" style progress. */
 .px-bar {
   height: 10px;
-  border: 2px solid var(--border);
+  border: 2px solid var(--frame);
   background: var(--surface-2);
   overflow: hidden;
 }
 .px-bar > span {
   display: block;
   height: 100%;
-  background-image: repeating-linear-gradient(90deg, currentColor 0 7px, transparent 7px 9px);
-  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.35);
+  background-image: repeating-linear-gradient(90deg, currentColor 0 6px, transparent 6px 8px);
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.3);
 }
 
 .px-pixelated {

@@ -46,7 +46,7 @@ function formatMinutes(m: number) {
   return h ? (r ? `${h} h ${r} min` : `${h} h`) : `${r} min`
 }
 
-/** A sensible first custom end: the chosen preset, rounded up to 5 min and kept within the limit. */
+/** A sensible first custom end: the chosen preset, up to 5 min and kept within the limit. */
 function defaultEnd(now: number, preset: number, max: number) {
   const mins = Math.min(preset, max)
   const d = new Date(now + mins * MINUTE)
@@ -81,7 +81,7 @@ function DeviceNameField({ value, onChange }: { value: string; onChange: (v: str
         placeholder="e.g. H7"
         autoComplete="off"
         spellCheck={false}
-        className="mt-1 block w-full border-2 border-line bg-surface-2 px-2.5 py-2 font-mono"
+        className="mt-1 block w-full border border-line bg-surface-2 px-2.5 py-2 font-mono"
       />
       <span className="mt-1 block text-xs font-normal text-muted">Settings › System › About › Device name (or Win + R → cmd → hostname).</span>
     </label>
@@ -225,7 +225,7 @@ export function ClaimDialog() {
         </fieldset>
 
         {/* One-line summary of what will happen. */}
-        <div className={`border-2 px-3 py-2.5 text-sm ${endError ? 'border-overdue/60 bg-overdue/10' : 'border-line bg-surface-2'}`}>
+        <div className={`border px-3 py-2.5 text-sm ${endError ? 'border-overdue/60 bg-overdue/10' : 'border-line bg-surface-2'}`}>
           {endError ? (
             <p role="alert" className="text-overdue">
               {endError}
@@ -263,7 +263,7 @@ export function ClaimDialog() {
           </div>
         ) : (
           // Only accounts created before device names existed land here.
-          <p role="alert" className="border-2 border-overdue/60 bg-overdue/10 px-2.5 py-2 text-sm">
+          <p role="alert" className="border border-overdue/60 bg-overdue/10 px-2.5 py-2 text-sm">
             Your account has no device name yet.{' '}
             <button
               type="button"

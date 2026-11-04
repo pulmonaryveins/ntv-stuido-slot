@@ -58,7 +58,7 @@ function Input({
 }: InputHTMLAttributes<HTMLInputElement> & { icon: IconName; trailing?: ReactNode; invalid?: boolean }) {
   return (
     <div
-      className={`flex items-center border-2 bg-surface-2 shadow-[inset_2px_2px_0_var(--lo)] focus-within:border-accent ${
+      className={`flex items-center border bg-surface-2 focus-within:border-accent ${
         invalid ? 'border-overdue' : 'border-line'
       }`}
     >
@@ -154,7 +154,7 @@ const STEPS: { icon: IconName; title: string; body: string }[] = [
 function Shell({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
     <main className="grid h-full overflow-y-auto lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
-      <aside className="on-dark relative hidden flex-col justify-between overflow-hidden border-r-2 border-black bg-[#121213] p-10 lg:flex xl:p-14">
+      <aside className="on-dark relative hidden flex-col justify-between overflow-hidden border-r border-line bg-[#1f1108] p-10 lg:flex xl:p-14">
         <div className="flex items-center gap-3">
           <span aria-hidden className="px-btn grid size-11 place-items-center bg-accent">
             <PixelIcon name="brush" size={26} />
@@ -219,7 +219,7 @@ function Alert({ tone, children }: { tone: 'error' | 'ok'; children: ReactNode }
   return (
     <p
       role={tone === 'error' ? 'alert' : 'status'}
-      className={`flex items-start gap-2 border-2 px-3 py-2 text-sm ${
+      className={`flex items-start gap-2 border px-3 py-2 text-sm ${
         tone === 'error' ? 'border-overdue/60 bg-overdue/10 text-overdue' : 'border-free/60 bg-free/10 text-free'
       }`}
     >
@@ -288,12 +288,12 @@ export function AuthScreen() {
       subtitle={mode === 'signin' ? 'Sign in to see the seats and claim one.' : 'An admin approves new accounts before they can claim seats.'}
     >
       <Tabs.Root value={mode} onValueChange={(v) => go(v as Mode)}>
-        <Tabs.List aria-label="Account" className="mb-5 grid grid-cols-2 gap-1 border-2 border-line bg-surface-2 p-1">
+        <Tabs.List aria-label="Account" className="mb-5 grid grid-cols-2 gap-1 border border-line bg-surface-2 p-1">
           {(['signin', 'register'] as const).map((m) => (
             <Tabs.Trigger
               key={m}
               value={m}
-              className="px-3 py-2 text-sm text-muted hover:text-ink data-[state=active]:bg-accent data-[state=active]:text-accent-ink data-[state=active]:shadow-[inset_2px_2px_0_var(--hi),inset_-2px_-2px_0_var(--lo)]"
+              className="px-3 py-2 text-sm text-muted hover:text-ink data-[state=active]:bg-accent data-[state=active]:text-accent-ink data-[state=active]:"
             >
               {m === 'signin' ? 'Sign in' : 'Register'}
             </Tabs.Trigger>
@@ -451,7 +451,7 @@ function RegisterForm() {
                 setDeviceName(e.target.value.toUpperCase())
                 if (errorField === 'device') clearMessages()
               }}
-              className="font-mono uppercase"
+              className="font-mono"
             />
           )}
         </Field>

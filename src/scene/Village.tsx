@@ -1,6 +1,7 @@
 import { useLayoutEffect, useMemo, useRef } from 'react'
+import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { GEO, GLOW, rand } from './kit'
+import { GEO, GLOW, NIGHT, rand } from './kit'
 
 /**
  * A blocky plains village around the office: timber-framed houses on cobblestone footings,
@@ -360,6 +361,174 @@ function hill(o: Out, x: number, z: number, w: number, d: number, tiers: number,
   }
 }
 
+// --- fortifications ---------------------------------------------------------
+
+/** Town wall bounds and gates (the main path and the square's path pass through gates). */
+const WALL = { x0: -64, x1: 64, z0: -50, z1: 64, h: 4.5, t: 1.4 }
+const GATE_HALF = 2.5
+
+/** Torch on a short bracket; its glow and ground light come from the lights list. */
+function torch(o: Out, x: number, y: number, z: number) {
+  o.boxes.push({ p: [x, y, z], s: [0.14, 0.5, 0.14], c: K.logDark })
+  o.lights.push([x, y + 0.36, z])
+}
+
+/**
+ * Straight wall from a to b (axis-aligned) with a walkway, crenellations on both edges, torches
+ * on the inner face every few blocks, and optional gaps (along-axis ranges) for gates.
+ */
+function wall(o: Out, x0: number, z0: number, x1: number, z1: number, gaps: [number, number][] = []) {
+  const alongX = Math.abs(x1 - x0) > Math.abs(z1 - z0)
+  const a0 = alongX ? Math.min(x0, x1) : Math.min(z0, z1)
+  const a1 = alongX ? Math.max(x0, x1) : Math.max(z0, z1)
+  const fixed = alongX ? z0 : x0
+  // Inner side points toward the town centre.
+  const inward = alongX ? (fixed > 0 ? -1 : 1) : fixed > 0 ? -1 : 1
+  const runs: [number, number][] = []
+  let start = a0
+  for (const [g0, g1] of [...gaps].sort((p, q) => p[0] - q[0])) {
+    if (g0 > start) runs.push([start, g0])
+    start = g1
+  }
+  if (start < a1) runs.push([start, a1])
+  const at = (a: number, off: number): [number, number] => (alongX ? [a, fixed + off] : [fixed + off, a])
+  const size = (len: number, h: number, d: number): V3 => (alongX ? [len, h, d] : [d, h, len])
+  for (const [r0, r1] of runs) {
+    const len = r1 - r0
+    const mid = (r0 + r1) / 2
+    const [cx, cz] = at(mid, 0)
+    o.boxes.push({ p: [cx, WALL.h / 2, cz], s: size(len, WALL.h, WALL.t), c: K.cobble })
+    o.boxes.push({ p: [cx, 0.4, cz], s: size(len, 0.8, WALL.t + 0.3), c: K.cobbleDark }) // plinth
+    o.boxes.push({ p: [cx, WALL.h + 0.05, cz], s: size(len, 0.1, WALL.t - 0.2), c: K.plank }) // walkway
+    for (let a = r0 + 0.4; a < r1 - 0.3; a += 1.2) {
+      for (const edge of [-1, 1]) {
+        const [bx, bz] = at(a, edge * (WALL.t / 2 - 0.2))
+        o.boxes.push({ p: [bx, WALL.h + 0.45, bz], s: size(0.6, 0.8, 0.4), c: K.cobble })
+      }
+    }
+    for (let a = r0 + 4; a < r1 - 2; a += 9) {
+      const [tx, tz] = at(a, inward * (WALL.t / 2 + 0.12))
+      torch(o, tx, 2.6, tz)
+    }
+  }
+}
+
+/** Square tower with arrow slits, crenellated top, stepped roof and a lantern. */
+function wallTower(o: Out, x: number, z: number, h = 8) {
+  const b = o.boxes
+  b.push({ p: [x, h / 2, z], s: [4.4, h, 4.4], c: K.cobble })
+  b.push({ p: [x, 0.5, z], s: [4.8, 1, 4.8], c: K.cobbleDark })
+  b.push({ p: [x, h - 0.3, z], s: [4.8, 0.6, 4.8], c: K.cobbleDark })
+  for (const [dx, dz] of [
+    [0, 2.21],
+    [0, -2.21],
+    [2.21, 0],
+    [-2.21, 0],
+  ] as const) {
+    for (const y of [2.5, 5]) b.push({ p: [x + dx, y, z + dz], s: dx ? [0.04, 0.9, 0.3] : [0.3, 0.9, 0.04], c: '#1e1e1f' })
+  }
+  for (let i = -2; i <= 2; i += 1) {
+    for (const [dx, dz] of [
+      [i, -2.2],
+      [i, 2.2],
+      [-2.2, i],
+      [2.2, i],
+    ] as const)
+      if ((i + 2) % 2 === 0) b.push({ p: [x + dx, h + 0.4, z + dz], s: [0.7, 0.8, 0.7], c: K.cobble })
+  }
+  for (let i = 0; i < 4; i++) b.push({ p: [x, h + 1.2 + i * 0.6, z], s: [3.6 - i * 0.9, 0.6, 3.6 - i * 0.9], c: K.darkOak })
+  b.push({ p: [x, h + 4, z], s: [0.12, 1.4, 0.12], c: K.logDark }) // flag pole
+  b.push({ p: [x + 0.5, h + 4.4, z], s: [0.9, 0.55, 0.05], c: '#b3312c' }) // banner
+  o.lights.push([x, h + 0.9, z + 2.5])
+  o.lights.push([x, h + 0.9, z - 2.5])
+}
+
+/** Gatehouse: two towers either side of the opening, an arch beam and a raised portcullis. */
+function gatehouse(o: Out, x: number, z: number, alongX: boolean) {
+  const off = GATE_HALF + 2.2
+  const t1: [number, number] = alongX ? [x - off, z] : [x, z - off]
+  const t2: [number, number] = alongX ? [x + off, z] : [x, z + off]
+  wallTower(o, t1[0], t1[1], 9)
+  wallTower(o, t2[0], t2[1], 9)
+  const span = GATE_HALF * 2 + 0.2
+  o.boxes.push({ p: [x, WALL.h + 0.9, z], s: alongX ? [span, 1.8, WALL.t + 0.6] : [WALL.t + 0.6, 1.8, span], c: K.cobbleDark })
+  for (let i = -2; i <= 2; i++) {
+    const p: V3 = alongX ? [x + i * 0.9, WALL.h - 0.3, z] : [x, WALL.h - 0.3, z + i * 0.9]
+    o.boxes.push({ p, s: [0.12, 0.9, 0.12], c: '#2a2a2e' })
+  }
+  // torches either side of the opening, inside and out
+  for (const side of [-1, 1]) {
+    for (const face of [-1, 1]) {
+      const tx = alongX ? x + side * (GATE_HALF + 0.3) : x + face * (WALL.t / 2 + 0.15)
+      const tz = alongX ? z + face * (WALL.t / 2 + 0.15) : z + side * (GATE_HALF + 0.3)
+      torch(o, tx, 2.4, tz)
+    }
+  }
+}
+
+/** Castle keep on the back hill: walls, corner turrets, a tall central tower. */
+function castle(o: Out, x: number, y: number, z: number) {
+  const b = o.boxes
+  const W = 12
+  const D = 5
+  b.push({ p: [x, y + 2.5, z], s: [W, 5, D], c: K.cobble })
+  for (let i = -W / 2 + 0.5; i <= W / 2 - 0.5; i += 1.2) b.push({ p: [x + i, y + 5.4, z + D / 2 - 0.2], s: [0.6, 0.8, 0.4], c: K.cobble })
+  for (const dx of [-W / 2, W / 2]) {
+    b.push({ p: [x + dx, y + 4, z], s: [2.6, 8, 2.6], c: K.cobbleDark })
+    b.push({ p: [x + dx, y + 8.6, z], s: [3, 1.2, 3], c: K.darkOak })
+    b.push({ p: [x + dx, y + 9.6, z], s: [1.8, 0.8, 1.8], c: K.darkOak })
+    o.lights.push([x + dx, y + 6.5, z + 1.5])
+  }
+  b.push({ p: [x, y + 6, z - 0.5], s: [4, 12, 3.4], c: K.cobble })
+  b.push({ p: [x, y + 12.5, z - 0.5], s: [4.6, 1, 4], c: K.cobbleDark })
+  for (let i = 0; i < 3; i++) b.push({ p: [x, y + 13.4 + i * 0.7, z - 0.5], s: [3.6 - i * 1.1, 0.7, 3 - i * 0.9], c: K.darkOak })
+  b.push({ p: [x, y + 16.4, z - 0.5], s: [0.15, 2, 0.15], c: K.logDark })
+  b.push({ p: [x + 0.7, y + 16.9, z - 0.5], s: [1.3, 0.7, 0.05], c: '#e9b44c' })
+  b.push({ p: [x, y + 1.6, z + D / 2 + 0.02], s: [1.8, 3.2, 0.1], c: K.darkOak }) // great door
+  for (const wx of [-3.5, 3.5]) b.push({ p: [x + wx, y + 3.2, z + D / 2 + 0.02], s: [0.8, 1.2, 0.06], c: K.glass })
+  for (const wy of [6.5, 9.5]) b.push({ p: [x, y + wy, z + 1.22], s: [0.8, 1.2, 0.06], c: K.glass })
+  o.lights.push([x - 1.4, y + 2, z + D / 2 + 0.3])
+  o.lights.push([x + 1.4, y + 2, z + D / 2 + 0.3])
+}
+
+function fortifications(o: Out) {
+  const { x0, x1, z0, z1 } = WALL
+  const mainZ = (PATH_Z0 + PATH_Z1) / 2
+  // front (with the main gate on the square's road), back, and sides (gates on the main path)
+  wall(o, x0, z1, x1, z1, [[-GATE_HALF - 4.4, GATE_HALF + 4.4]])
+  wall(o, x0, z0, x1, z0)
+  wall(o, x0, z0, x0, z1, [[mainZ - GATE_HALF - 4.4, mainZ + GATE_HALF + 4.4]])
+  wall(o, x1, z0, x1, z1, [[mainZ - GATE_HALF - 4.4, mainZ + GATE_HALF + 4.4]])
+  gatehouse(o, 0, z1, true)
+  gatehouse(o, x0, mainZ, false)
+  gatehouse(o, x1, mainZ, false)
+  // corner towers + towers along the walls
+  for (const [tx, tz] of [
+    [x0, z0],
+    [x1, z0],
+    [x0, z1],
+    [x1, z1],
+    [-32, z0],
+    [0, z0],
+    [32, z0],
+    [-32, z1],
+    [32, z1],
+    [x0, -16],
+    [x1, -16],
+    [x0, 44],
+    [x1, 44],
+  ] as const)
+    wallTower(o, tx, tz)
+  // road out of the front gate and lanterns along the inner ring road
+  path(o, 0, 56, 0, z1 + 6, 2.4)
+  for (let x = -48; x <= 48; x += 16) if (Math.abs(x) > 6) lanternPost(o, x, z1 - 3)
+  for (let z = -40; z <= 56; z += 16) {
+    lanternPost(o, x0 + 3, z)
+    lanternPost(o, x1 - 3, z)
+  }
+  castle(o, 0, 7.5, -66)
+}
+
 // --- layout ------------------------------------------------------------------
 
 export function buildVillage(): Out {
@@ -457,6 +626,8 @@ export function buildVillage(): Out {
   ] as const)
     flowers(o, x, z, s++)
 
+  fortifications(o)
+
   // horizon hills
   hill(o, -40, -62, 34, 18, 4, 1)
   hill(o, 0, -66, 40, 16, 5, 2)
@@ -488,19 +659,87 @@ function useInstanced(boxes: Box[], material: THREE.Material, cast = true) {
   return <instancedMesh ref={ref} args={[GEO.box, material, boxes.length]} castShadow={cast} receiveShadow />
 }
 
+/** Soft radial glow texture for the light pools under lanterns and torches. */
+function glowTexture() {
+  const c = document.createElement('canvas')
+  c.width = c.height = 64
+  const ctx = c.getContext('2d')!
+  const g = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
+  g.addColorStop(0, 'rgba(255,255,255,1)')
+  g.addColorStop(0.35, 'rgba(255,255,255,0.45)')
+  g.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, 64, 64)
+  const t = new THREE.CanvasTexture(c)
+  t.colorSpace = THREE.SRGBColorSpace
+  return t
+}
+
+/**
+ * Warm pools of light on the ground under every lantern and torch. Fake lighting (additive
+ * decals) instead of real lights, so a whole town of lamps costs one draw call.
+ */
+function LightPools({ points }: { points: V3[] }) {
+  const ref = useRef<THREE.InstancedMesh>(null)
+  const material = useMemo(
+    () =>
+      new THREE.MeshBasicMaterial({
+        map: glowTexture(),
+        color: '#ffb35c',
+        transparent: true,
+        opacity: 0,
+        blending: THREE.AdditiveBlending,
+        depthWrite: false,
+      }),
+    [],
+  )
+  const geometry = useMemo(() => new THREE.PlaneGeometry(1, 1).rotateX(-Math.PI / 2), [])
+  useLayoutEffect(() => {
+    const mesh = ref.current
+    if (!mesh) return
+    const m = new THREE.Matrix4()
+    points.forEach((p, i) => {
+      // Higher lights (towers) throw a wider, fainter pool.
+      const r = p[1] > 5 ? 9 : 5.5
+      m.makeScale(r, 1, r).setPosition(p[0], 0.07, p[2])
+      mesh.setMatrixAt(i, m)
+    })
+    mesh.instanceMatrix.needsUpdate = true
+    mesh.computeBoundingSphere()
+  }, [points])
+  useFrame(() => {
+    const n = NIGHT.value
+    material.opacity = n * 0.55
+    if (ref.current) ref.current.visible = n > 0.02
+  })
+  return <instancedMesh ref={ref} args={[geometry, material, points.length]} renderOrder={2} />
+}
+
 export function Village() {
-  const { boxes, lanterns } = useMemo(() => {
+  const { boxes, windows, lanterns, lights } = useMemo(() => {
     const v = buildVillage()
     return {
-      boxes: v.boxes,
+      // Window panes light up at night, so they get their own glowing material.
+      boxes: v.boxes.filter((b) => b.c !== K.glass),
+      windows: v.boxes.filter((b) => b.c === K.glass),
       lanterns: v.lights.map((p): Box => ({ p, s: [0.26, 0.3, 0.26], c: '' })),
+      lights: v.lights,
     }
   }, [])
   const material = useMemo(() => new THREE.MeshStandardMaterial({ roughness: 0.95, flatShading: true }), [])
+  const windowMat = useMemo(
+    () => new THREE.MeshStandardMaterial({ color: '#ffffff', emissive: '#ffc061', emissiveIntensity: 0, roughness: 0.3, flatShading: true }),
+    [],
+  )
+  useFrame(() => {
+    windowMat.emissiveIntensity = NIGHT.value * 1.5
+  })
   return (
     <group>
       {useInstanced(boxes, material)}
+      {useInstanced(windows, windowMat, false)}
       {useInstanced(lanterns, GLOW.lamp, false)}
+      <LightPools points={lights} />
     </group>
   )
 }

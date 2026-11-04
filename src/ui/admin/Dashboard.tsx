@@ -25,7 +25,7 @@ function Tile({
 }) {
   const body = (
     <>
-      <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wide text-muted">
+      <div className="flex items-center gap-2 text-xs font-medium text-muted">
         <PixelIcon name={icon} size={14} />
         {label}
       </div>
@@ -109,7 +109,7 @@ export function Dashboard({ snapshot, goTo }: { snapshot: Snapshot; goTo: (t: Ad
           <div className="mt-3 space-y-3">
             {snapshot.accounts.map((a) => (
               <div key={a.id}>
-                <div className="text-xs font-medium uppercase tracking-wide text-muted">{a.label}</div>
+                <div className="text-xs font-medium text-muted">{a.label}</div>
                 <ul className="mt-1 space-y-1">
                   {snapshot.slots
                     .filter((sl) => sl.account_id === a.id)
@@ -165,7 +165,7 @@ export function Dashboard({ snapshot, goTo }: { snapshot: Snapshot; goTo: (t: Ad
                       </span>
                     </div>
                     <div className="mt-1 h-2 bg-surface-2">
-                      <div className="h-full rounded-r bg-accent" style={{ width: `${(u.minutes / topMax) * 100}%` }} />
+                      <div className="h-full-r bg-accent" style={{ width: `${(u.minutes / topMax) * 100}%` }} />
                     </div>
                   </li>
                 )

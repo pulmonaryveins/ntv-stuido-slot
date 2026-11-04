@@ -23,13 +23,13 @@ export function Spinner({ size = 16, className = '' }: { size?: number; classNam
   )
 }
 
-/** Grass blocks hopping one after another, with shadows that shrink as they rise. */
+/** Pixel blocks hopping one after another, with shadows that shrink as they rise. */
 function HoppingBlocks() {
   return (
     <span aria-hidden className="flex items-end gap-2.5">
       {[0, 1, 2, 3].map((i) => (
         <span key={i} className="flex flex-col items-center" style={{ ['--d' as string]: `${i * 120}ms` }}>
-          <span className="ss-hop block size-6 border-2 border-black bg-[#866043] shadow-[inset_0_7px_0_#5fa83a,inset_0_9px_0_#4a8a2c,inset_0_-3px_0_rgba(0,0,0,0.3)]" />
+          <span className="ss-hop block size-5 border border-line bg-accent" />
           <span className="ss-hop-shadow mt-1.5 block h-1 w-6 bg-black/40" />
         </span>
       ))}
@@ -42,7 +42,7 @@ export function Loader({ label = 'Loading…', className = '' }: { label?: strin
   return (
     <div role="status" aria-live="polite" className={`grid place-items-center gap-4 p-6 text-muted ${className}`}>
       <HoppingBlocks />
-      <span className="ss-dots font-pixel text-sm uppercase">{label.replace(/…$/, '')}</span>
+      <span className="ss-dots font-pixel text-sm">{label.replace(/…$/, '')}</span>
     </div>
   )
 }
@@ -51,7 +51,7 @@ export function Loader({ label = 'Loading…', className = '' }: { label?: strin
 export function ActivityBar() {
   const busy = useStudio((s) => s.busy > 0)
   return (
-    <div aria-hidden className="relative h-1 overflow-hidden bg-black">
+    <div aria-hidden className="relative h-0.5 overflow-hidden">
       {busy && <span className="ss-progress absolute inset-y-0 w-1/3 bg-accent" />}
       {busy && <span className="sr-only" role="status">Saving…</span>}
     </div>

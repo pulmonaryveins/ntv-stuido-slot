@@ -25,7 +25,7 @@ function AccountName({ account }: { account: Account }) {
         value={label}
         maxLength={40}
         onChange={(e) => setLabel(e.target.value)}
-        className="min-w-0 flex-1 border-2 border-line bg-surface-2 px-2 py-1 text-sm font-semibold"
+        className="min-w-0 flex-1 border border-line bg-surface-2 px-2 py-1 text-sm font-semibold"
       />
       {changed && (
         <button type="submit" className="px-btn bg-accent px-2.5 py-1 text-xs font-semibold text-accent-ink">
@@ -72,7 +72,7 @@ export function SeatsPage({ snapshot }: { snapshot: Snapshot }) {
                   return (
                     <li key={s.id} className="bg-surface-2 p-2.5 text-sm">
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold uppercase tracking-wide text-muted">Slot {s.slot_number}</span>
+                        <span className="text-xs font-semibold text-muted">Slot {s.slot_number}</span>
                         <span className="ml-auto text-xs">
                           {holder ? (
                             over ? <span className="font-semibold text-overdue">Over time</span> : <span className="text-ink">In use</span>

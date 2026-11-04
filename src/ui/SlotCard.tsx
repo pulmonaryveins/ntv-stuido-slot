@@ -5,7 +5,7 @@ import { formatClock, formatDuration } from '../lib/format'
 import { STATE_COLORS } from '../lib/status'
 import { useStudio } from '../store/studio'
 import { Button, GateButton, Popover } from './controls'
-import { PixelIcon, type IconName } from './PixelIcon'
+import { PixelIcon } from './PixelIcon'
 import { UserAvatar } from './UserAvatar'
 
 export function slotAccent(_slot: Slot, view: SlotView): string {
@@ -31,7 +31,6 @@ export function SlotCard({
   const pushToast = useStudio((s) => s.pushToast)
   const focusSlot = useStudio((s) => s.focusSlot)
   const setView = useStudio((s) => s.setView)
-  const webgl = useStudio((s) => s.webgl)
 
   const view = deriveSlotView(slot, now)
   const g = slotGates(slot, viewer, snapshot, now)
@@ -45,188 +44,164 @@ export function SlotCard({
     g.knock !== 'hidden' && g.knock ? `Knock: ${g.knock}` : null,
   ].filter(Boolean)
 
+  const hold = view.kind === 'reserved' ? snapshot.profiles.find((p) => p.id === slot.hold_user_id) : null
+  const end = slot.user_id ? now + view.remainingMs : null
+  const endSession = () =>
+    void act((c) => c.releaseSlot(slot.id)).then(
+      (ok) =>
+        ok &&
+        slot.device_name &&
+        pushToast({ kind: 'info', title: `Sign out of Adobe on ${slot.device_name}`, body: 'So the seat shows as free in Adobe too.' }),
+    )
+  const forceEnd = () =>
+    void act((c) => c.adminForceRelease(slot.id)).then(
+      (ok) =>
+        ok &&
+        pushToast({
+          kind: 'info',
+          title: slot.device_name ? `Now sign out device ${slot.device_name} in Adobe` : 'Now sign out the device in Adobe',
+          body: "Use the Adobe account's activated-devices list so the next person can sign in.",
+        }),
+    )
+
   return (
     <article
       aria-labelledby={`slot-${slot.id}-title`}
-      className={`px-panel relative flex flex-col overflow-hidden p-3 ${pulse ? 'pulse' : ''} ${g.isMine ? 'border-accent' : ''}`}
+      className={`px-panel flex flex-col overflow-hidden ${pulse ? 'pulse' : ''} ${g.isMine ? 'outline-2 outline-accent' : ''}`}
       style={{ ['--pulse-color' as string]: `${accent}66` }}
     >
-      <span aria-hidden className="absolute inset-y-0 left-0 w-2 border-r-[3px] border-line" style={{ background: accent }} />
-      <div className="flex items-start gap-2 pl-2">
-        <div className="min-w-0 flex-1">
-          <h3 id={`slot-${slot.id}-title`} className="text-xs font-semibold uppercase tracking-wide text-muted">
-            {heading}
-          </h3>
-          <p className="truncate text-sm font-semibold">
-            {holder ? (
-              <>
-                <UserAvatar profile={holder} size={22} className="mr-2 align-middle" />
-                {holder.name}
-                {g.isMine && <span className="ml-1 font-normal text-accent">(you)</span>}
-              </>
-            ) : view.kind === 'reserved' ? (
-              <>
-                Reserved for {nameOf(snapshot, slot.hold_user_id)}
-                {slot.hold_user_id === viewer.userId && <span className="ml-1 font-normal text-accent">(you)</span>}
-              </>
-            ) : (
-              'Free'
-            )}
-          </p>
-        </div>
-        <StateChip slot={slot} view={view} accent={accent} />
-      </div>
-
-      <div className="mt-2 pl-2 text-xs text-muted">
-        {view.kind === 'free' && <p>Available now</p>}
-        {slot.user_id && (
-          <p className="mb-1 flex items-center gap-1.5">
-            <span>Device</span>
-            <Popover
-              title="Adobe device"
-              trigger={
-                <button type="button" className="px-badge bg-surface-2 px-1.5 font-mono text-ink underline decoration-dotted underline-offset-2 hover:bg-accent hover:text-accent-ink">
-                  {slot.device_name ?? 'unknown'}
-                </button>
-              }
-            >
-              <p>
-                <strong className="font-mono">{slot.device_name ?? 'Unknown device'}</strong> is signed in to Adobe on this seat
-                {holder ? (
-                  <>
-                    {' '}
-                    for <strong>{holder.name}</strong>
-                  </>
-                ) : null}
-                .
-              </p>
-              <p className="mt-2 text-xs">
-                In Adobe&apos;s activated-devices list, this is the computer to sign out when the session ends.
-              </p>
-            </Popover>
-          </p>
-        )}
-        {view.kind === 'reserved' && view.holdRemainingMs !== null && (
-          <p>
-            Hold expires in <strong className="text-ink">{formatDuration(view.holdRemainingMs)}</strong>
-          </p>
-        )}
-        {slot.user_id && (
-          <>
-            <div className="flex justify-between gap-2">
-              <span>Used {formatDuration(view.elapsedMs)}</span>
-              <span className={view.overdue ? 'font-semibold text-overdue' : ''}>
-                {view.overdue
-                  ? `Over by ${formatDuration(view.remainingMs)}`
-                  : `${formatDuration(view.remainingMs)} left · until ${formatClock(now + view.remainingMs)}`}
-              </span>
-            </div>
-            <div
-              role="progressbar"
-              aria-label={`${heading} session progress`}
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-valuenow={Math.round(view.progress * 100)}
-              className="px-bar mt-1"
-            >
-              <span style={{ width: `${view.progress * 100}%`, color: accent }} />
-            </div>
-          </>
-        )}
-      </div>
-
-      <div className="mt-auto flex flex-wrap gap-1.5 pt-3 pl-2">
-        {!slot.user_id && (
-          <GateButton gate={g.claim} variant="primary" onClick={() => openClaim(slot.id)}>
-            Claim
-          </GateButton>
-        )}
-        {g.isMine && (
-          <>
-            <Button
-              variant="secondary"
-              onClick={() =>
-                void act((c) => c.releaseSlot(slot.id)).then(
-                  (ok) =>
-                    ok &&
-                    slot.device_name &&
-                    pushToast({ kind: 'info', title: `Sign out of Adobe on ${slot.device_name}`, body: 'So the seat shows as free in Adobe too.' }),
-                )
-              }
-            >
-              End session
-            </Button>
-            <GateButton gate={g.extend} onClick={() => void act((c) => c.extendSlot(slot.id, 30))}>
-              +30 min
-            </GateButton>
-          </>
-        )}
-        {g.knock !== 'hidden' && (
-          <GateButton gate={g.knock} onClick={() => void act((c) => c.knock(slot.id))}>
-            <PixelIcon name="door" size={14} /> Knock
-          </GateButton>
-        )}
-        {g.forceRelease !== 'hidden' && (
-          <GateButton
-            gate={g.forceRelease}
-            variant="danger"
-            onClick={() =>
-              void act((c) => c.adminForceRelease(slot.id)).then(
-                (ok) =>
-                  ok &&
-                  pushToast({
-                    kind: 'info',
-                    title: slot.device_name ? `Now sign out device ${slot.device_name} in Adobe` : 'Now sign out the device in Adobe',
-                    body: "Use the Adobe account's activated-devices list so the next person can sign in.",
-                  }),
-              )
-            }
-          >
-            Force end
-          </GateButton>
-        )}
-        {webgl && (
-          <Button
-            variant="ghost"
-            aria-label={`View ${heading} in 3D`}
+      {/* State strip: slot number, status, and a shortcut to the seat in 3D */}
+      <header className="flex items-center gap-2 border-b border-line px-3 py-1.5 text-black" style={{ background: accent }}>
+        <h3 id={`slot-${slot.id}-title`} className="text-sm normal-case">
+          {heading}
+        </h3>
+        <StateChip slot={slot} view={view} />
+        {(
+          <button
+            type="button"
+            aria-label={`View ${heading} in the office`}
+            title="View in the office"
             onClick={() => {
               setView('3d')
               focusSlot(slot.id)
             }}
+            className="grid size-6 place-items-center border border-line bg-black/10 hover:bg-black/25"
           >
-            View in 3D
-          </Button>
+            <PixelIcon name="block" size={12} />
+          </button>
         )}
-      </div>
+      </header>
 
-      {disabledReasons.length > 0 && (
-        <ul className="mt-2 space-y-0.5 pl-2 text-[11px] text-muted" aria-hidden>
-          {disabledReasons.map((r) => (
-            <li key={r}>⦸ {r}</li>
-          ))}
-        </ul>
-      )}
+      <div className="flex flex-1 flex-col gap-3 p-3">
+        {holder ? (
+          <>
+            <div className="flex items-center gap-3">
+              <UserAvatar profile={holder} size={44} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold">
+                  {holder.name}
+                  {g.isMine && <span className="ml-1.5 bg-accent px-1 font-pixel text-[10px] text-white">You</span>}
+                </p>
+                <div className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+                  <span>PC</span>
+                  <Popover
+                    title="Adobe device"
+                    trigger={
+                      <button type="button" className="border border-line bg-white px-1 font-mono text-[11px] font-bold text-black hover:bg-accent hover:text-white">
+                        {slot.device_name ?? 'unknown'}
+                      </button>
+                    }
+                  >
+                    <p>
+                      <strong className="font-mono">{slot.device_name ?? 'Unknown device'}</strong> is signed in to Adobe on this seat for{' '}
+                      <strong>{holder.name}</strong>.
+                    </p>
+                    <p className="mt-2 text-xs">In Adobe&apos;s activated-devices list, this is the computer to sign out when the session ends.</p>
+                  </Popover>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div className="flex items-baseline justify-between gap-2">
+                <span className={`font-pixel text-xl tabular-nums ${view.overdue ? 'text-overdue' : 'text-ink'}`}>
+                  {view.overdue ? `+${formatDuration(view.remainingMs)}` : formatDuration(view.remainingMs)}
+                </span>
+                <span className="text-xs text-muted">
+                  {view.overdue ? 'over time' : 'left'} · until {end !== null ? formatClock(end) : '—'}
+                </span>
+              </div>
+              <div
+                role="progressbar"
+                aria-label={`${heading} session progress`}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(view.progress * 100)}
+                className="px-bar mt-1.5"
+              >
+                <span style={{ width: `${Math.min(1, view.progress) * 100}%`, color: accent }} />
+              </div>
+              <p className="mt-1 text-[11px] text-muted">Used {formatDuration(view.elapsedMs)}</p>
+            </div>
+          </>
+        ) : view.kind === 'reserved' ? (
+          <div className="flex items-center gap-3">
+            <UserAvatar profile={hold} size={44} />
+            <div className="min-w-0">
+              <p className="truncate font-semibold">
+                Held for {nameOf(snapshot, slot.hold_user_id)}
+                {slot.hold_user_id === viewer.userId && <span className="ml-1.5 bg-accent px-1 font-pixel text-[10px] text-white">You</span>}
+              </p>
+              <p className="text-xs text-muted">
+                Next on the waiting list · {formatDuration(view.holdRemainingMs ?? 0)} to claim
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3">
+            <span className="px-btn grid size-11 place-items-center bg-surface-2">
+              <PixelIcon name="block" size={22} />
+            </span>
+            <div>
+              <p className="font-semibold">Free seat</p>
+              <p className="text-xs text-muted">Available now · sign in to Adobe after you claim</p>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-auto flex flex-wrap gap-1.5">
+          {!slot.user_id && (
+            <GateButton gate={g.claim} variant="primary" className="flex-1 py-1.5" onClick={() => openClaim(slot.id)}>
+              Claim seat
+            </GateButton>
+          )}
+          {g.isMine && (
+            <>
+              <Button variant="secondary" className="flex-1" onClick={endSession}>
+                End session
+              </Button>
+              <GateButton gate={g.extend} onClick={() => void act((c) => c.extendSlot(slot.id, 30))}>
+                +30 min
+              </GateButton>
+            </>
+          )}
+          {g.knock !== 'hidden' && (
+            <GateButton gate={g.knock} className="flex-1" onClick={() => void act((c) => c.knock(slot.id))}>
+              <PixelIcon name="door" size={14} /> Knock
+            </GateButton>
+          )}
+          {g.forceRelease !== 'hidden' && (
+            <GateButton gate={g.forceRelease} variant="danger" onClick={forceEnd}>
+              Force end
+            </GateButton>
+          )}
+        </div>
+        {disabledReasons.length > 0 && <span className="sr-only">{disabledReasons.join('. ')}</span>}
+      </div>
     </article>
   )
 }
 
-function StateChip({ slot, view, accent }: { slot: Slot; view: SlotView; accent: string }) {
-  let icon: IconName = 'block'
-  let label = 'Free'
-  if (view.kind === 'reserved') {
-    icon = 'ticket'
-    label = 'Reserved'
-  } else if (slot.user_id) {
-    icon = 'brush'
-    label = view.overdue ? 'In use · overdue' : 'In use'
-  }
-  return (
-    <span
-      className="font-pixel inline-flex shrink-0 items-center gap-1 border-2 border-line px-1.5 py-0.5 text-xs font-semibold uppercase text-ink"
-      style={{ background: `${accent}40` }}
-    >
-      <PixelIcon name={icon} size={14} />
-      {label}
-    </span>
-  )
+function StateChip({ slot, view }: { slot: Slot; view: SlotView }) {
+  const label = view.kind === 'reserved' ? 'Reserved' : !slot.user_id ? 'Free' : view.overdue ? 'Over time' : 'In use'
+  return <span className="font-pixel ml-auto shrink-0 text-xs">{label}</span>
 }

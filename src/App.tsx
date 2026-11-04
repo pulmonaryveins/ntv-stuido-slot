@@ -11,7 +11,7 @@ import { ClaimDialog, DeviceNameDialog } from './ui/Dialogs'
 import { Toasts } from './ui/Toasts'
 import { AdminPage } from './ui/admin/AdminPage'
 
-const Stage = lazy(() => import('./scene/Stage'))
+const PixelOffice = lazy(() => import('./pixel/PixelOffice'))
 
 /** Auth gate: with Supabase configured, the board only mounts for a signed-in user. */
 export function App() {
@@ -38,7 +38,7 @@ function Board() {
   const view = useStudio((s) => s.view)
   const page = useStudio((s) => s.page)
   const loadError = useStudio((s) => s.loadError)
-  // Mount the 3D stage on first use, then keep it (paused) so switching back is instant.
+  // Mount the office view on first use, then keep it (paused) so switching back is instant.
   const [stageMounted, setStageMounted] = useState(view === '3d')
 
   const userId = useAuth((s) => s.userId)
@@ -77,7 +77,7 @@ function Board() {
           </p>
         )}
         {page === 'admin' ? (
-          <main className="min-h-0 flex-1 overflow-y-auto">
+          <main className="min-h-0 flex-1 overflow-hidden">
             <AdminPage />
           </main>
         ) : (
@@ -87,8 +87,8 @@ function Board() {
                 className={show3d ? 'relative h-[48vh] shrink-0 lg:h-auto lg:min-w-0 lg:flex-1' : 'hidden'}
                 aria-hidden={!show3d}
               >
-                <Suspense fallback={<Loader label="Building the office…" className="h-full" />}>
-                  <Stage active={show3d} />
+                <Suspense fallback={<Loader label="Opening the office…" className="h-full" />}>
+                  <PixelOffice active={show3d} />
                 </Suspense>
               </div>
             )}
@@ -105,7 +105,7 @@ function Board() {
             </div>
           </main>
         )}
-        <footer className="on-dark flex flex-wrap items-center gap-x-3 border-t-2 border-black bg-black px-4 py-1.5 text-[11px] text-muted">
+        <footer className="on-dark flex flex-wrap items-center gap-x-3 border-t border-line bg-black px-4 py-1.5 text-[11px] text-muted">
           <span>Studio Slots · never store Adobe credentials here</span>
         </footer>
       </div>
