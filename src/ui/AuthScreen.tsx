@@ -286,7 +286,7 @@ export function AuthScreen() {
   return (
     <Shell
       title={mode === 'signin' ? 'Welcome back' : 'Create your account'}
-      subtitle={mode === 'signin' ? 'Sign in to see the seats and claim one.' : 'An admin approves new accounts before they can claim seats.'}
+      subtitle={mode === 'signin' ? 'Sign in to see the seats and claim one.' : 'Create an account to claim a seat.'}
     >
       <Tabs.Root value={mode} onValueChange={(v) => go(v as Mode)}>
         <Tabs.List aria-label="Account" className="mb-5 grid grid-cols-2 gap-1 border-2 border-line bg-surface-2 p-1">

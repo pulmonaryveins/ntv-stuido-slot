@@ -249,9 +249,10 @@ describe('registration + approval (empty project)', () => {
     expect(await c.su(`select role, active from profiles where id = '${FIRST}'`)).toEqual([{ role: 'admin', active: true }])
   })
 
-  it('later accounts start inactive and are logged for the admin', async () => {
+  // Approval is temporarily off (20261104120000_auto_approve.sql): new accounts start active.
+  it('later accounts start active and are logged for the admin', async () => {
     await signUp(db, SECOND, 'new@example.com', 'Newbie')
-    expect(await c.su(`select role, active from profiles where id = '${SECOND}'`)).toEqual([{ role: 'user', active: false }])
+    expect(await c.su(`select role, active from profiles where id = '${SECOND}'`)).toEqual([{ role: 'user', active: true }])
     expect(await c.su(`select count(*)::int n from activity_log where action = 'user_registered' and user_id = '${SECOND}'`)).toEqual([{ n: 1 }])
   })
 
@@ -264,15 +265,16 @@ describe('registration + approval (empty project)', () => {
     expect(await c.su(`select device_name from profiles where id = '${PC_BAD}'`)).toEqual([{ device_name: null }])
   })
 
-  it('pending user sees only their own profile, no board, cannot act', async () => {
+  it('deactivated user sees only their own profile, no board, cannot act', async () => {
+    expect(await c.code(FIRST, `select admin_update_profile('${SECOND}', p_active => false)`)).toBe('ok')
     expect(await c.as(SECOND, `select id from profiles`)).toEqual([{ id: SECOND }])
     expect(await c.as(SECOND, `select count(*)::int n from slots`)).toEqual([{ n: 0 }])
     expect(await c.code(SECOND, `select claim_slot(1, 'editing', 30)`)).toBe('not_authorized')
     expect(await c.code(SECOND, `select admin_update_profile('${SECOND}', p_active => true)`)).toBe('not_authorized')
   })
 
-  it('admin sees the pending user and approves them', async () => {
-    expect(await c.as(FIRST, `select count(*)::int n from profiles where not active`)).toEqual([{ n: 3 }])
+  it('admin sees the inactive user and reactivates them', async () => {
+    expect(await c.as(FIRST, `select count(*)::int n from profiles where not active`)).toEqual([{ n: 1 }])
     expect(await c.code(FIRST, `select admin_update_profile('${SECOND}', p_active => true)`)).toBe('ok')
     expect(await c.as(SECOND, `select count(*)::int n from slots`)).toEqual([{ n: 4 }])
     // A brand-new user has no remembered device yet.

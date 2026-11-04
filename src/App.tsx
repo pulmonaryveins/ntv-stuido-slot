@@ -107,6 +107,16 @@ function Board() {
         )}
         <footer className="on-dark flex flex-wrap items-center gap-x-3 border-t-2 border-black bg-black px-4 py-1.5 text-[11px] text-muted">
           <span>Studio Slots · never store Adobe credentials here</span>
+          <span className="ml-auto">
+            Characters:{' '}
+            <a className="underline hover:text-white" href="https://sketchfab.com/3d-models/superhero-minecraft-character-7f8adae9ca62403c91973b9bab7e04bd" target="_blank" rel="noreferrer">
+              Superhero Minecraft Character
+            </a>{' '}
+            by Wasi204,{' '}
+            <a className="underline hover:text-white" href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noreferrer">
+              CC BY 4.0
+            </a>
+          </span>
         </footer>
       </div>
       <ClaimDialog />

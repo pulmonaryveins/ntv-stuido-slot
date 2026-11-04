@@ -195,6 +195,27 @@ export async function callback(request: Request): Promise<Response> {
   ])
 }
 
+/**
+ * GET /api/auth/confirm?token_hash=…&type=recovery|email
+ * Email links from the Supabase templates (see supabase/templates). Unlike /callback this needs no
+ * PKCE cookie, so the link works in any browser or device; the hash is single-use and short-lived.
+ */
+export async function confirm(request: Request): Promise<Response> {
+  const url = new URL(request.url)
+  const origin = requestOrigin(request)
+  const tokenHash = url.searchParams.get('token_hash')
+  const type = url.searchParams.get('type') === 'recovery' ? 'recovery' : 'email'
+  const redirect = (to: string, cookies: (string | undefined)[] = []) =>
+    withCookies(new Response(null, { status: 302, headers: { Location: `${origin}${to}`, 'Cache-Control': 'no-store' } }), cookies)
+
+  if (!tokenHash) return redirect('/?auth_error=link_invalid')
+  const { data, error } = await anonClient().auth.verifyOtp({ token_hash: tokenHash, type })
+  if (error || !data.session) {
+    return redirect(`/?auth_error=${error && /expired|invalid/i.test(error.message) ? 'link_expired' : 'link_invalid'}`)
+  }
+  return redirect(type === 'recovery' ? '/?recovery=1' : '/?confirmed=1', [await sessionCookie(request, fromSupabase(data.session))])
+}
+
 /** POST /api/auth/password: set a new password (after a reset link, or while signed in). */
 export async function updatePassword(request: Request): Promise<Response> {
   const { session, setCookie } = await getSession(request)

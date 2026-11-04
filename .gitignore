@@ -11,3 +11,5 @@ dist
 # Optional scenery asset (CC BY 4.0, NoAI). Not committed; see README.
 *.glb
 !public/models/.gitkeep
+# Deployed character pack; credited in the App footer.
+!public/models/superhero_minecraft_character.glb

@@ -13,6 +13,7 @@ type Handler = (request: Request) => Promise<Response>
 const AUTH_ROUTES: Record<string, { method: 'GET' | 'POST'; handler: Handler }> = {
   'auth/me': { method: 'GET', handler: auth.me },
   'auth/callback': { method: 'GET', handler: auth.callback },
+  'auth/confirm': { method: 'GET', handler: auth.confirm },
   'auth/login': { method: 'POST', handler: auth.login },
   'auth/register': { method: 'POST', handler: auth.register },
   'auth/check-device': { method: 'POST', handler: auth.checkDevice },
