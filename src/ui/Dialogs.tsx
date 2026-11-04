@@ -9,6 +9,9 @@ import { Button } from './controls'
 import { TimePicker } from './TimePicker'
 import { Spinner } from './Loader'
 import { recentDevices, rememberDevice } from '../lib/recentDevices'
+import { buildViewer, slotGates } from '../lib/availability'
+import { SlotCard } from './SlotCard'
+import { useNow } from './useNow'
 
 export function Shell({
   open,
@@ -357,5 +360,44 @@ export function DeviceNameDialog() {
         </div>
       </form>
     </Shell>
+  )
+}
+
+/** Slot details and actions, opened by clicking a desk or its plate in the 3D view. */
+export function SlotDialog() {
+  const slotId = useStudio((s) => s.slotModalId)
+  const close = useStudio((s) => s.openSlotModal)
+  const snapshot = useStudio((s) => s.snapshot)
+  const actorId = useStudio((s) => s.actorId)
+  const now = useNow(1000)
+  const slot = snapshot?.slots.find((s) => s.id === slotId)
+  const account = slot ? snapshot?.accounts.find((a) => a.id === slot.account_id) : undefined
+  const openClaim = useStudio((s) => s.openClaim)
+  const viewer = snapshot ? buildViewer(snapshot, actorId) : null
+  // A seat the viewer can take goes straight to the claim dialog; anything else shows the card.
+  const claimable = !!slot && !!snapshot && !!viewer && !slot.user_id && slotGates(slot, viewer, snapshot, now).claim === null
+  useEffect(() => {
+    if (claimable && slot) openClaim(slot.id)
+  }, [claimable, slot, openClaim])
+  return (
+    <Dialog.Root open={!!slot && !claimable} onOpenChange={(o) => !o && close(null)}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/40" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 w-[min(92vw,440px)] -translate-x-1/2 -translate-y-1/2 px-panel p-4 text-ink">
+          <div className="mb-3 flex items-start justify-between gap-3">
+            <div>
+              <Dialog.Title className="text-lg font-semibold">
+                {account?.label ?? 'Account'} · Slot {slot?.slot_number}
+              </Dialog.Title>
+              <Dialog.Description className="text-sm text-muted">Seat details and actions.</Dialog.Description>
+            </div>
+            <Dialog.Close className="px-btn grid size-8 shrink-0 place-items-center bg-surface-2 text-lg leading-none" aria-label="Close">
+              ×
+            </Dialog.Close>
+          </div>
+          {slot && snapshot && viewer && <SlotCard slot={slot} snapshot={snapshot} viewer={viewer} now={now} inModal />}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   )
 }

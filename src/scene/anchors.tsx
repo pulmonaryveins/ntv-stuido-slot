@@ -45,18 +45,26 @@ export function AnchorProjector() {
   useFrame(() => {
     // Pass 1 reads only (projection + element sizes); pass 2 writes. Interleaving reads and
     // writes would force a layout per overlay per frame.
-    type Item = { a: Anchor; el: HTMLElement; desk: boolean; on: boolean; x: number; y: number; w: number; h: number }
+    type Item = { a: Anchor; el: HTMLElement; desk: boolean; on: boolean; x: number; y: number; w: number; h: number; s: number }
     const items: Item[] = []
+    // Desk plates shrink with the zoom (the desks get closer together on screen) and switch to a
+    // one-line compact form when small, so zooming out never buries the office under cards.
+    const baseZoom = Math.min(size.width / 56, size.height / 40)
+    const plateScale = THREE.MathUtils.clamp(camera.zoom / (baseZoom * 1.6), 0.7, 1)
+    const compact = camera.zoom < baseZoom * 1.4
     for (const [key, a] of anchors) {
       const el = a.el
       if (!el) continue
       v.copy(a.pos).project(camera)
       const on = v.z > -1 && v.z < 1 && Math.abs(v.x) < 1.2 && Math.abs(v.y) < 1.2
-      const w = el.offsetWidth
-      const h = el.offsetHeight
+      const desk = key.startsWith('desk:')
+      const s = desk ? plateScale : 1
+      if (desk && (el.dataset.compact === '1') !== compact) el.dataset.compact = compact ? '1' : ''
+      const w = el.offsetWidth * s
+      const h = el.offsetHeight * s
       const px = ((v.x + 1) / 2) * size.width
       const py = ((1 - v.y) / 2) * size.height
-      items.push({ a, el, desk: key.startsWith('desk:'), on, x: px + a.shiftX * w, y: py - h, w, h })
+      items.push({ a, el, desk, on, x: px + a.shiftX * w, y: py - h, w, h, s })
     }
 
     // Desk plates: nearer (lower) plates keep their place; plates behind move up until clear.
@@ -80,7 +88,7 @@ export function AnchorProjector() {
     for (const i of items) {
       const vis = i.on ? 'visible' : 'hidden'
       if (i.el.style.visibility !== vis) i.el.style.visibility = vis
-      if (i.on) i.el.style.transform = `translate(${Math.round(i.x)}px, ${Math.round(i.y)}px)`
+      if (i.on) i.el.style.transform = `translate(${Math.round(i.x)}px, ${Math.round(i.y)}px)${i.s !== 1 ? ` scale(${i.s.toFixed(3)})` : ''}`
     }
   })
   return null

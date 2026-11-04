@@ -18,7 +18,7 @@ export function Toasts() {
   const act = useStudio((s) => s.act)
 
   return (
-    <RToast.Provider swipeDirection="right">
+    <RToast.Provider swipeDirection="left">
       {toasts.map((t) => {
         const st = STYLE[t.kind]
         return (
@@ -64,7 +64,7 @@ export function Toasts() {
           </RToast.Root>
         )
       })}
-      <RToast.Viewport className="fixed bottom-3 right-3 z-50 flex w-[min(92vw,360px)] flex-col gap-2 outline-none" />
+      <RToast.Viewport className="fixed bottom-3 left-3 z-50 flex w-[min(92vw,360px)] flex-col gap-2 outline-none" />
     </RToast.Provider>
   )
 }

@@ -20,11 +20,14 @@ export function SlotCard({
   snapshot,
   viewer,
   now,
+  inModal = false,
 }: {
   slot: Slot
   snapshot: Snapshot
   viewer: Viewer
   now: number
+  /** Shown in the 3D slot modal: no "View in 3D" (the camera is already there). */
+  inModal?: boolean
 }) {
   const act = useStudio((s) => s.act)
   const openClaim = useStudio((s) => s.openClaim)
@@ -185,7 +188,7 @@ export function SlotCard({
             Force end
           </GateButton>
         )}
-        {webgl && (
+        {webgl && !inModal && (
           <Button
             variant="ghost"
             aria-label={`View ${heading} in 3D`}

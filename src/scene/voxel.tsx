@@ -92,6 +92,11 @@ const PAINTERS: Record<string, Painter> = {
     for (let y = 0; y < 16; y++)
       for (let x = 0; x < 16; x++) px(x, y, x % 8 === 7 ? '#a77d52' : ['#ddb685', '#d6ae7c', '#e3be8f'][Math.floor(r(x + y * 16) * 3)]!)
   },
+  // Polished porcelain floor tile: pale grey with a grout line, laid in a checker of two greys.
+  tile: (px, r) => {
+    for (let y = 0; y < 16; y++)
+      for (let x = 0; x < 16; x++) px(x, y, x === 0 || y === 0 ? '#9ea3a9' : ['#d9dce0', '#d3d6db', '#dee1e5'][Math.floor(r(x * 16 + y) * 3)]!)
+  },
   concrete: speckle(['#bdb7ad', '#b4aea4', '#c6c0b6', '#aea89e']),
   terracotta: speckle(['#c4683f', '#b95f38', '#cf7247']),
   rack: (px, r) => {
@@ -101,6 +106,9 @@ const PAINTERS: Record<string, Painter> = {
         px(x, y, x === 0 || x === 15 ? '#4a4d57' : grille ? '#14151a' : ['#2b2d35', '#272930', '#30323a'][Math.floor(r(x * 16 + y) * 3)]!)
       }
   },
+  // Interior walls: cool off-white, and a slate-grey plinth, to sit with the carpet and steel.
+  wall: speckle(['#e8ecf0', '#e3e8ec', '#edf0f3']),
+  plinth: speckle(['#8e98a4', '#87919d', '#949ea9']),
   drywall: speckle(['#eeeae2', '#e9e4db', '#f2eee7']),
   metal: (px, r) => {
     for (let y = 0; y < 16; y++)
@@ -109,12 +117,17 @@ const PAINTERS: Record<string, Painter> = {
   // Office carpet tiles: warm grey with a seam, two shades laid alternately like real tiles.
   carpetA: (px, r) => {
     for (let y = 0; y < 16; y++)
-      for (let x = 0; x < 16; x++) px(x, y, x === 0 || y === 0 ? '#6c6762' : ['#8d8883', '#87827d', '#938e89'][Math.floor(r(x * 16 + y) * 3)]!)
+      for (let x = 0; x < 16; x++) px(x, y, x === 0 || y === 0 ? '#5a6574' : ['#7d8a9c', '#778496', '#8391a3'][Math.floor(r(x * 16 + y) * 3)]!)
   },
   carpetB: (px, r) => {
     for (let y = 0; y < 16; y++)
-      for (let x = 0; x < 16; x++) px(x, y, x === 0 || y === 0 ? '#6c6762' : ['#7f7a75', '#7a7570', '#85807b'][Math.floor(r(x * 16 + y) * 3)]!)
+      for (let x = 0; x < 16; x++) px(x, y, x === 0 || y === 0 ? '#5a6574' : ['#6f7c8e', '#697688', '#75828f'][Math.floor(r(x * 16 + y) * 3)]!)
   },
+  // Main-floor office carpet: blue-grey fibre speckle, no per-block seam (tiles are 2 units wide).
+  carpetC: speckle(['#a3adba', '#9ca7b4', '#a9b3bf', '#98a3b0']),
+  carpetD: speckle(['#929eac', '#8b97a5', '#98a3b1', '#87939f']),
+  // Walkway runner: dark charcoal carpet.
+  carpetE: speckle(['#4d535d', '#474d57', '#535963', '#444a53']),
   glass: (px) => {
     for (let y = 0; y < 16; y++)
       for (let x = 0; x < 16; x++) {
@@ -137,7 +150,7 @@ function tex(name: string) {
 export type BlockType =
   | 'grass' | 'dirt' | 'stone' | 'cobble' | 'planks' | 'planksDark' | 'log' | 'leaves'
   | 'brick' | 'plaster' | 'teal' | 'tealDark' | 'amber' | 'cloud' | 'rock' | 'glass'
-  | 'oak' | 'concrete' | 'terracotta' | 'rack' | 'drywall' | 'metal' | 'carpetA' | 'carpetB'
+  | 'oak' | 'concrete' | 'terracotta' | 'rack' | 'wall' | 'plinth' | 'drywall' | 'metal' | 'carpetA' | 'carpetB' | 'carpetC' | 'carpetD' | 'carpetE' | 'tile'
 
 const matCache = new Map<BlockType, THREE.Material | THREE.Material[]>()
 

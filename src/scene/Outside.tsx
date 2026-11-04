@@ -1,9 +1,9 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
 import { rand } from './kit'
-import { Village } from './Village'
+import { City } from './City'
 
-/** Outside the office: grass, a cobblestone yard around the building, and the village. */
+/** Outside the office: pavement, a paved plaza around the building, and the city. */
 
 function pixelTexture(colors: string[], seed: number, repeat: number) {
   const canvas = document.createElement('canvas')
@@ -25,9 +25,9 @@ function pixelTexture(colors: string[], seed: number, repeat: number) {
 }
 
 function Ground() {
-  const grass = useMemo(() => pixelTexture(['#6dbf4b', '#64b345', '#78c957', '#5aa83c'], 1, 120), [])
+  const paving = useMemo(() => pixelTexture(['#b9b6ae', '#b1aea6', '#c1beb6', '#aaa8a0'], 1, 120), [])
   const cobble = useMemo(() => {
-    const t = pixelTexture(['#8f8f8f', '#7d7d7d', '#9b9b9b', '#727272'], 2, 1)
+    const t = pixelTexture(['#8e9097', '#84868d', '#989aa1', '#7b7d84'], 2, 1)
     t.repeat.set(46, 38)
     return t
   }, [])
@@ -35,9 +35,9 @@ function Ground() {
     <group>
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.03, 0]} receiveShadow>
         <planeGeometry args={[240, 240]} />
-        <meshStandardMaterial map={grass} roughness={1} />
+        <meshStandardMaterial map={paving} roughness={1} />
       </mesh>
-      {/* cobblestone yard around the office */}
+      {/* paved plaza around the office */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.02, 0]} receiveShadow>
         <planeGeometry args={[46, 38]} />
         <meshStandardMaterial map={cobble} roughness={1} />
@@ -46,14 +46,11 @@ function Ground() {
   )
 }
 
-/** Night glow materials outside the office (the village lanterns use the shared lamp glow). */
-export const CITY_GLOW: THREE.MeshStandardMaterial[] = []
-
-export function Outside(_props: { reducedMotion: boolean }) {
+export function Outside({ reducedMotion }: { reducedMotion: boolean }) {
   return (
     <group>
       <Ground />
-      <Village />
+      <City reducedMotion={reducedMotion} />
     </group>
   )
 }

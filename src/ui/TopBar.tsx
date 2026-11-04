@@ -6,6 +6,7 @@ import { useStudio, type Page, type Speed, type TimeMode, type View } from '../s
 import { Segmented, Select } from './controls'
 import { UserAvatar } from './UserAvatar'
 import { PixelIcon, type IconName } from './PixelIcon'
+import { Logo } from './Logo'
 
 export function TopBar() {
   const s = useStudio()
@@ -18,8 +19,8 @@ export function TopBar() {
     <header className="on-dark border-b-2 border-black bg-black">
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2 sm:px-4">
         <div className="flex items-center gap-2.5">
-          <span aria-hidden className="px-btn grid size-9 place-items-center bg-accent">
-            <PixelIcon name="brush" size={20} />
+          <span aria-hidden className="px-btn grid size-9 place-items-center bg-[#2b3445]">
+            <Logo size={26} />
           </span>
           <div className="leading-tight">
             <h1 className="text-base font-semibold">Studio Slots</h1>

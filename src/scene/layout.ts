@@ -130,7 +130,7 @@ export function cartSpot(index: number): XZ {
   return [KITCHEN[0] - 2.2 + (index % 4) * 1.3, KITCHEN[1] + 1.55]
 }
 
-export type IdleActivity = LoungeActivity | 'meeting' | 'collab' | 'racks' | 'roam'
+export type IdleActivity = LoungeActivity | 'meeting' | 'collab' | 'racks' | 'dining' | 'print' | 'vend' | 'roam'
 
 /** One thing an idle user can be doing: a lounge activity, a table, the racks or just wandering. */
 export interface IdleSpot {
@@ -156,15 +156,57 @@ const around = (c: XZ, dx: number, dz: number, activity: IdleActivity, back: boo
 const fromLounge = (l: LoungeSpot): IdleSpot => ({ ...l, route: [HUB, l.pos] })
 const roam = (pos: XZ, facing: number): IdleSpot => ({ pos, facing, activity: 'roam', pose: 'stand', seatY: 0, route: [HUB, pos] })
 
+const PI = Math.PI
+const seat = (pos: XZ, facing: number, activity: IdleActivity, seatY: number, route: XZ[]): IdleSpot => ({ pos, facing, activity, pose: 'sit', seatY, route })
+const stand = (pos: XZ, facing: number, activity: IdleActivity, route: XZ[] = [HUB, pos]): IdleSpot => ({ pos, facing, activity, pose: 'stand', seatY: 0, route })
+
+/** Conference table chairs: three a side. Near side (toward the door) faces -z, far side +z. */
+const MEETING_SEATS: IdleSpot[] = [-1.8, 0, 1.8].flatMap((dx) => {
+  const x = MEETING[0] + dx
+  const [, mz] = MEETING
+  return [
+    seat([x, mz + 1.1], PI, 'meeting', 0.55, [HUB, [10, 0], [9.2, -10.9], [11, -10.9], [x, mz + 1.9], [x, mz + 1.1]]),
+    seat([x, mz - 1.1], 0, 'meeting', 0.55, [HUB, [10, 0], [9.2, -10.9], [11, -10.9], [11.2, mz], [11.2, mz - 1.9], [x, mz - 1.9], [x, mz - 1.1]]),
+  ]
+})
+
+/** Pantry dining chairs (see PantryTable in Props.tsx): the counter-side row and the front row. */
+const DINING_SEATS: IdleSpot[] = [KITCHEN[0] - 2.6, KITCHEN[0] + 0.8].flatMap((tx) =>
+  [-0.55, 0.55].flatMap((dx) => {
+    const x = tx + dx
+    const z1 = KITCHEN[1] + 4.35
+    const z2 = KITCHEN[1] + 6.75
+    return [
+      seat([x, z1 - 0.85], 0, 'dining', 0.55, [HUB, [-11, 0], [-11, z1 - 1.0], [x, z1 - 1.0], [x, z1 - 0.85]]),
+      seat([x, z2 + 0.85], PI, 'dining', 0.55, [HUB, [-11, 0], [-11, z2 + 1.4], [x, z2 + 1.4], [x, z2 + 0.85]]),
+    ]
+  }),
+)
+
+/** Breakout stools at the three high-top tables (see CollabTable in Props.tsx). */
+const COLLAB_SEATS: IdleSpot[] = [-3.2, 0, 3.2].flatMap((dx) => {
+  const x = COLLAB[0] + dx
+  const z = COLLAB[1]
+  const side = dx > 0 ? x - 1.6 : x + 1.6
+  return [
+    seat([x, z - 0.85], 0, 'collab', 0.82, [HUB, [x, z - 2.4], [x, z - 0.85]]),
+    seat([x, z + 0.85], PI, 'collab', 0.82, [HUB, [side, z - 1.8], [side, z + 1.8], [x, z + 1.8], [x, z + 0.85]]),
+  ]
+})
+
 /** First LOUNGE_SPOTS.length entries mirror the lounge, so index i < that is lounge spot i. */
 export const IDLE_SPOTS: IdleSpot[] = [
   ...LOUNGE_SPOTS.map(fromLounge),
-  around(COLLAB, -1.8, -1.4, 'collab', false),
-  around(COLLAB, 1.8, 1.4, 'collab', false),
-  around(COLLAB, 0, -1.4, 'collab', false),
-  around(MEETING, -2, 0, 'meeting', true),
-  around(MEETING, 2, 0, 'meeting', true),
-  around(MEETING, 0, 2, 'meeting', true),
+  ...COLLAB_SEATS,
+  ...MEETING_SEATS,
+  ...DINING_SEATS,
+  // at the printer and the two vending machines on the right edge, facing them (+x)
+  stand([SUPPLIES[0] - 1.9, SUPPLIES[1]], PI / 2, 'print'),
+  stand([ROOM_X - 1.9, 1.6], PI / 2, 'vend'),
+  stand([ROOM_X - 1.9, 2.85], PI / 2, 'vend'),
+  around(MEETING, -3.7, 0, 'meeting', true),
+  around(MEETING, 3.7, 0, 'meeting', true),
+  around(MEETING, 0, 2.1, 'meeting', true),
   around(RACKS, 0, 1.9, 'racks', true),
   around(RACKS, -2.2, 1.9, 'racks', true),
   roam([-6, 5], 0.6),

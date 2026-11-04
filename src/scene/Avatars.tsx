@@ -310,7 +310,21 @@ function Avatar({
         pose.armR = -1.2 + Math.cos(t * 17) * 0.1
       } else if (lounge.activity === 'racks') {
         pose.armR = -1.4 + Math.sin(t * 2) * 0.15
+      } else if (lounge.activity === 'dining') {
+        // forkfuls to the mouth, every few seconds a sip
+        const bite = Math.max(0, Math.sin(t * 1.3 + ph))
+        pose.armR = -0.5 - bite * 1.1
+        pose.armL = -0.35
+      } else if (lounge.activity === 'print' || lounge.activity === 'vend') {
+        pose.armR = -1.3 + Math.sin(t * 4 + ph) * 0.12 // tapping the buttons
+        pose.armL = -0.2
       }
+    }
+    if (arrived && station.kind === 'cart' && !reducedMotion) {
+      // coffee break: sip from a mug now and then
+      const ph = rand(hashString(profile.id)) * 10
+      pose.armR = -0.6 - Math.max(0, Math.sin(t * 0.9 + ph)) * 1.0
+      pose.armL = -0.4
     }
     if (celebrate && !reducedMotion) {
       y += Math.abs(Math.sin(t * 9)) * 0.35

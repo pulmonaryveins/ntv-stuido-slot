@@ -3,12 +3,15 @@ import { CUBE_BACK, CUBE_FRONT, CUBE_W, DOOR_Z, RACKS, ROOM_BACK, ROOM_FRONT, RO
 import { VoxelWorld, cell, type BlockType } from './voxel'
 
 const WALL_H = 11 // blocks (5.5 units)
+const BAY = 8 // blocks between steel columns
+const WINDOW_J0 = 3 // window rows: 1.5 to 4.5 units
+const WINDOW_J1 = 8
 
-/** Static blocky office: floor slab, back + left walls with windows and a door, cubicle carpets, server racks. */
-export function buildWorld(buildingCount: number): VoxelWorld {
+/** Static blocky office: floor slab, back + left walls with windows and a door, server racks. */
+export function buildWorld(): VoxelWorld {
   const w = new VoxelWorld()
   room(w)
-  for (let b = 0; b < Math.min(buildingCount, 2); b++) studio(w, b)
+  for (let b = 0; b < 2; b++) pod(w, b)
   serverRacks(w)
   return w
 }
@@ -19,18 +22,17 @@ function room(w: VoxelWorld) {
   const k0 = cell(ROOM_BACK)
   const k1 = cell(ROOM_FRONT - 0.01)
 
-  // Floor slab: oak planks with a dark trim, concrete underneath (the diorama base).
+  // Floor slab: office carpet tiles (2 units square, two shades) with a steel trim, concrete underneath (the diorama base).
   for (let i = i0; i <= i1; i++)
     for (let k = k0; k <= k1; k++) {
       const edge = i === i1 || k === k1
-      w.set(i, -1, k, edge ? 'planksDark' : 'oak')
+      w.set(i, -1, k, edge ? 'metal' : ((i >> 2) + (k >> 2)) % 2 === 0 ? 'carpetC' : 'carpetD')
       w.set(i, -2, k, 'concrete')
       w.set(i, -3, k, rand(i * 7 + k) < 0.2 ? 'stone' : 'concrete')
     }
 
-  // Back wall (k0 - 1) and left wall (i0 - 1): brick base, plaster, dark trim on top.
-  // Village style: cobblestone footing, oak plank walls, a log beam on top.
-  const wallBlock = (j: number): BlockType => (j < 2 ? 'cobble' : j < WALL_H - 1 ? 'planks' : 'log')
+  // Back wall (k0 - 1) and left wall (i0 - 1): cool grey plinth, off-white walls, a steel fascia.
+  const wallBlock = (j: number): BlockType => (j < 2 ? 'plinth' : j < WALL_H - 1 ? 'wall' : 'metal')
   const backK = k0 - 1
   const leftI = i0 - 1
   for (let j = -3; j < WALL_H; j++) {
@@ -39,32 +41,53 @@ function room(w: VoxelWorld) {
     for (let k = backK; k <= k1; k++) w.set(leftI, j, k, block)
   }
 
-  // Log pillars every few blocks (timber frame), and at the corners.
+  // Steel columns every BAY blocks, and at the corners. Each bay between two columns either
+  // holds one window or stays solid wall (for fixtures and the door).
   for (let j = 0; j < WALL_H; j++) {
-    for (let i = leftI; i <= i1; i += 8) w.set(i, j, backK, 'log')
-    for (let k = backK; k <= k1; k += 8) w.set(leftI, j, k, 'log')
-    w.set(i1, j, backK, 'log')
-    w.set(leftI, j, k1, 'log')
+    for (let i = leftI; i <= i1; i += BAY) w.set(i, j, backK, 'metal')
+    for (let k = backK; k <= k1; k += BAY) w.set(leftI, j, k, 'metal')
+    w.set(i1, j, backK, 'metal')
+    w.set(leftI, j, k1, 'metal')
   }
 
-  // High loft windows (above the studio rooms) on the back wall, tall ones on the left wall.
-  // Windows at eye level (1.5-3.5 units), placed between the pod signs and clear of the kitchen shelf.
-  // Back wall: between the kitchen and the render farm, either side of the printer gap, and in the meeting room.
-  for (const [a, b] of [[-17, -12], [9, 15], [22, 26], [34, 38]] as const) w.fill(a, b, 3, 6, backK, backK, 'glass')
-  // Left wall: beside the kitchen and between the kitchen and reception.
-  for (const [a, b] of [[-24, -19], [-14, -10]] as const) w.fill(leftI, leftI, 3, 6, a, b, 'glass')
+  // Windows: one per bay, same size and height, centred mullion, steel sill. The bay is named by
+  // the column cell on its low side. Solid bays: the kitchen, the server room, the meeting room
+  // (back wall); the door, the posters and the TV (left wall).
+  for (const c of [-25, -17, 7, 15]) window(w, c, backK, 'back')
+  for (const c of [-25, -17, -9, 23]) window(w, c, leftI, 'left')
 
-  // Door opening in the left wall with a dark frame.
+  featureWalls(w, backK, leftI)
+
+  // Door opening in the left wall with a steel frame.
   const dk = cell(DOOR_Z)
-  w.fill(leftI, leftI, 0, 4, dk - 1, dk + 1, 'log')
+  w.fill(leftI, leftI, 0, 4, dk - 1, dk + 1, 'metal')
   for (let j = 0; j < 4; j++) for (let k = dk - 1; k <= dk; k++) w.delete(leftI, j, k)
 }
 
-/**
- * Carpet under one cubicle pod, exactly the pod's footprint (both cubicles, back panel to the
- * open front), laid as alternating carpet tiles. The account colour lives on the partitions.
- */
-function studio(w: VoxelWorld, index: number) {
+/** One window filling the bay that starts after column `c` (cell index along the wall). */
+function window(w: VoxelWorld, c: number, wall: number, side: 'back' | 'left') {
+  const set = (n: number, j: number, type: BlockType) => (side === 'back' ? w.set(n, j, wall, type) : w.set(wall, j, n, type))
+  for (let n = c + 1; n < c + BAY; n++) {
+    set(n, WINDOW_J0 - 1, 'metal') // sill
+    for (let j = WINDOW_J0; j <= WINDOW_J1; j++) set(n, j, n === c + BAY / 2 ? 'metal' : 'glass')
+  }
+}
+
+/** Teal feature bays (behind the server room and the TV lounge) and a steel kitchen splashback. */
+function featureWalls(w: VoxelWorld, backK: number, leftI: number) {
+  const paint = (i: number, j: number, k: number, type: BlockType) => {
+    if (w.get(i, j, k) === 'wall') w.set(i, j, k, type)
+  }
+  const bay = (c: number, fn: (n: number) => void) => {
+    for (let n = c + 1; n < c + BAY; n++) fn(n)
+  }
+  for (const c of [-9, -1]) bay(c, (i) => { for (let j = 2; j < WALL_H - 1; j++) paint(i, j, backK, 'tealDark') })
+  for (const c of [-41, -33]) bay(c, (i) => { for (let j = 2; j < 6; j++) paint(i, j, backK, 'metal') })
+  bay(15, (k) => { for (let j = 2; j < WALL_H - 1; j++) paint(leftI, j, k, 'tealDark') })
+}
+
+/** Carpet under one cubicle pod, exactly the pod's footprint, laid as alternating tiles. */
+function pod(w: VoxelWorld, index: number) {
   const bx = buildingX(index)
   const i0 = cell(bx - CUBE_W)
   const i1 = cell(bx + CUBE_W - 0.01)
@@ -83,7 +106,5 @@ function serverRacks(w: VoxelWorld) {
   const k1 = cell(rz + 0.5 - 0.01)
   w.fill(i0 - 1, i1 + 1, -1, -1, k0, k1 + 1, 'stone')
   w.fill(i0, i1, 0, 5, k0, k1, 'rack')
-  w.fill(i0, i1, 6, 6, k0, k1, 'concrete')
-  // cable tray up the wall
-  w.fill(i0, i1, 9, 9, k0 - 0, k0, 'concrete')
+  w.fill(i0, i1, 6, 6, k0, k1, 'metal')
 }

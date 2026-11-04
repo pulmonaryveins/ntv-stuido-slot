@@ -23,7 +23,7 @@ export function Panel({ wide }: { wide: boolean }) {
     <div
       className={
         wide
-          ? 'grid gap-4 p-3 sm:p-4 lg:min-h-full lg:grid-cols-[minmax(0,1fr)_minmax(320px,26rem)]'
+          ? 'grid items-start gap-4 p-3 sm:p-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,26rem)]'
           : 'space-y-4 p-3'
       }
     >
@@ -32,13 +32,13 @@ export function Panel({ wide }: { wide: boolean }) {
         <h2 id="slots-heading" className="sr-only">
           Slots
         </h2>
-        <div className={wide ? 'grid flex-1 gap-4 md:grid-cols-2' : 'space-y-4'}>
+        <div className={wide ? 'grid items-start gap-4 md:grid-cols-2' : 'space-y-4'}>
           {snapshot.accounts.map((account) => (
             <AccountSection key={account.id} account={account} snapshot={snapshot} viewer={viewer} now={now} wide={wide} />
           ))}
         </div>
       </section>
-      <div className={wide ? 'flex min-w-0 flex-col gap-4' : 'space-y-4'}>
+      <div className={wide ? 'flex min-w-0 flex-col gap-4 lg:sticky lg:top-4' : 'space-y-4'}>
         <WaitingList snapshot={snapshot} viewer={viewer} now={now} />
         <ActivityFeed snapshot={snapshot} now={now} wide={wide} />
       </div>
@@ -116,13 +116,19 @@ function AccountSection({
   const slots = snapshot.slots.filter((s) => s.account_id === account.id).sort((a, b) => a.slot_number - b.slot_number)
   const used = slots.filter((s) => s.user_id)
   return (
-    <section aria-labelledby={`account-${account.id}`} className={wide ? 'flex flex-col gap-2' : 'space-y-2'}>
-      <div className="flex items-baseline gap-2">
-        <h3 id={`account-${account.id}`} className="text-sm font-semibold">
+    <section aria-labelledby={`account-${account.id}`} className={wide ? 'flex flex-col gap-2 border-2 border-line bg-surface/40 p-3' : 'space-y-2'}>
+      <div className="flex items-center gap-2">
+        <h3 id={`account-${account.id}`} className="font-pixel text-sm font-semibold uppercase">
           {account.label}
         </h3>
-        <span className="text-xs text-muted tabular-nums">
-          {used.length}/{slots.length} in use
+        {/* seat meter: one block per seat, filled when in use */}
+        <span className="flex gap-0.5" aria-hidden>
+          {slots.map((s) => (
+            <span key={s.id} className={`h-2.5 w-4 border border-black ${s.user_id ? 'bg-reserved' : s.hold_user_id ? 'bg-[#5b8def]' : 'bg-free'}`} />
+          ))}
+        </span>
+        <span className="ml-auto text-xs text-muted tabular-nums">
+          {slots.length - used.length} free · {used.length}/{slots.length} in use
         </span>
       </div>
       {/* Mirrors the Adobe account's activated-devices list: which device is which seat. */}
@@ -139,8 +145,7 @@ function AccountSection({
           <span>no devices</span>
         )}
       </p>
-      {/* In the list view the seats stretch to fill the page height. */}
-      <div className={wide ? 'grid flex-1 auto-rows-fr gap-3' : 'space-y-3'}>
+      <div className={wide ? 'grid gap-3' : 'space-y-3'}>
         {slots.map((slot) => (
           <SlotCard key={slot.id} slot={slot} snapshot={snapshot} viewer={viewer} now={now} />
         ))}
@@ -236,7 +241,7 @@ function ActivityFeed({ snapshot, now, wide }: { snapshot: Snapshot; now: number
       <h2 id="activity-heading" className="text-sm font-semibold">
         Activity
       </h2>
-      <ul className={`mt-2 space-y-1 overflow-y-auto pr-1 text-sm ${wide ? 'max-h-96 min-h-0 flex-1 lg:h-0 lg:max-h-none' : 'max-h-96'}`} tabIndex={0} aria-label="Recent activity">
+      <ul className={`mt-2 space-y-1 overflow-y-auto pr-1 text-sm ${wide ? 'max-h-96 lg:max-h-[52vh]' : 'max-h-96'}`} tabIndex={0} aria-label="Recent activity">
         {items.map((e) => {
           const d = describeActivity(e, snapshot)
           const t = toMs(e.created_at) ?? now

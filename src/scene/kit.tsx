@@ -46,9 +46,9 @@ export const PAL = {
   soilDark: '#8a5b38',
   rock: '#7d7a85',
   rockDark: '#5f5c69',
-  wood: '#c98e55',
-  woodDark: '#9c6a3c',
-  plank: '#dcae78',
+  wood: '#d9dde2',
+  woodDark: '#4a505a',
+  plank: '#e6e9ed',
   brick: '#c4664a',
   brickDark: '#a24f39',
   plaster: '#f1e4cf',
@@ -135,3 +135,21 @@ export function hashString(s: string) {
   for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0
   return Math.abs(h)
 }
+
+/** Soft radial falloff used for the lamp light pools and halos (white centre fading to nothing). */
+export function glowTexture() {
+  const canvas = document.createElement('canvas')
+  canvas.width = canvas.height = 128
+  const ctx = canvas.getContext('2d')!
+  const g = ctx.createRadialGradient(64, 64, 0, 64, 64, 64)
+  g.addColorStop(0, 'rgba(255,255,255,1)')
+  g.addColorStop(0.25, 'rgba(255,255,255,0.6)')
+  g.addColorStop(0.6, 'rgba(255,255,255,0.18)')
+  g.addColorStop(1, 'rgba(255,255,255,0)')
+  ctx.fillStyle = g
+  ctx.fillRect(0, 0, 128, 128)
+  const tex = new THREE.CanvasTexture(canvas)
+  tex.colorSpace = THREE.SRGBColorSpace
+  return tex
+}
+

@@ -9,8 +9,10 @@ import { GLOW, NIGHT as NIGHT_FACTOR } from './kit'
 import { deskSpots, type XZ } from './layout'
 import { World } from './Island'
 import { Lounge } from './Props'
+import { Extras } from './Extras'
 import { Zones } from './Zones'
-import { CITY_GLOW, Outside } from './Outside'
+import { Outside } from './Outside'
+import { CITY_GLOW } from './City'
 import { glassMaterial } from './voxel'
 import { Building, Desk, DeskPlate } from './Studio'
 import { RenderFarm } from './RenderFarm'
@@ -87,6 +89,9 @@ export default function Stage({ active }: { active: boolean }) {
   // Sky behind the street scene (the fog in DayNight fades the ground into the horizon colour).
   const backdrop = `linear-gradient(180deg, ${lerpColor('#8fd0ea', '#0d1430', night)} 0%, ${lerpColor('#cfe9ef', '#2c2654', night)} 60%, ${lerpColor(SKY_HORIZON_DAY, SKY_HORIZON_NIGHT, night)} 100%)`
 
+  const mist = useRef<HTMLDivElement>(null)
+  const mistColor = lerpColor(SKY_HORIZON_DAY, SKY_HORIZON_NIGHT, night)
+
   return (
     <div className="absolute inset-0" style={{ background: backdrop }}>
       <Canvas
@@ -108,11 +113,12 @@ export default function Stage({ active }: { active: boolean }) {
           near={0.1}
           far={400}
         />
-        <Controls focus={focus} reducedMotion={reducedMotion} />
+        <Controls focus={focus} reducedMotion={reducedMotion} mist={mist} />
         <AnchorProjector />
         <DayNight night={night} />
-        <World buildings={snapshot?.accounts.length ?? 2} />
+        <World />
         <Lounge />
+        <Extras />
         <Zones />
         <Outside reducedMotion={reducedMotion} />
         <RenderFarm renders={renders} reducedMotion={reducedMotion} />
@@ -133,6 +139,25 @@ export default function Stage({ active }: { active: boolean }) {
         )}
         <Dog reducedMotion={reducedMotion} />
       </Canvas>
+
+      {/* Edge mist: blurs and fades the outskirts so zooming out never shows where the city ends.
+          Controls drives --mist (0 at the default zoom, 1 fully zoomed out). */}
+      <div
+        ref={mist}
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={
+          {
+            '--mist': 0,
+            '--mist-in': 'calc(85% - var(--mist) * 22%)',
+            background: `radial-gradient(ellipse at 50% 48%, transparent var(--mist-in), color-mix(in srgb, ${mistColor} calc(15% + var(--mist) * 50%), transparent) 100%)`,
+            backdropFilter: 'blur(calc(var(--mist) * 3px))',
+            WebkitBackdropFilter: 'blur(calc(var(--mist) * 3px))',
+            maskImage: 'radial-gradient(ellipse at 50% 48%, transparent var(--mist-in), #000 calc(var(--mist-in) + 40%))',
+            WebkitMaskImage: 'radial-gradient(ellipse at 50% 48%, transparent var(--mist-in), #000 calc(var(--mist-in) + 40%))',
+          } as React.CSSProperties
+        }
+      />
 
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
         {snapshot?.slots.map((slot) => {
@@ -188,13 +213,14 @@ export default function Stage({ active }: { active: boolean }) {
 }
 
 /** Zoom + rotate only (polar angle locked), eased focus on a desk. */
-function Controls({ focus, reducedMotion }: { focus: XZ | null; reducedMotion: boolean }) {
+function Controls({ focus, reducedMotion, mist }: { focus: XZ | null; reducedMotion: boolean; mist: React.RefObject<HTMLDivElement | null> }) {
   const controls = useRef<OrbitControlsImpl>(null)
   const { camera, size, invalidate } = useThree()
   // Fit the island both ways (it is ~28 units wide and ~24 tall on screen at this angle).
   // Fit the office plus a margin of street and skyline around it.
   const baseZoom = Math.min(size.width / 56, size.height / 40)
   const goal = useRef({ target: new THREE.Vector3(), zoom: baseZoom, animating: false })
+  const lastMist = useRef(-1)
 
   useEffect(() => {
     const g = goal.current
@@ -206,6 +232,12 @@ function Controls({ focus, reducedMotion }: { focus: XZ | null; reducedMotion: b
   }, [focus, baseZoom, invalidate])
 
   useFrame((_, dt) => {
+    // Mist strength: none at the default zoom or closer, full at the zoom-out limit.
+    const m = Math.round(THREE.MathUtils.clamp((baseZoom - camera.zoom) / (baseZoom * 0.4), 0, 1) * 100) / 100
+    if (m !== lastMist.current && mist.current) {
+      lastMist.current = m
+      mist.current.style.setProperty('--mist', String(m))
+    }
     const c = controls.current
     const g = goal.current
     if (!c || !g.animating) return

@@ -39,6 +39,8 @@ interface StudioState {
   deviceDialog: boolean
   timeMode: TimeMode
   focusSlotId: number | null
+  /** Slot whose details/actions modal is open (opened by clicking a desk in the 3D view). */
+  slotModalId: number | null
   demo: boolean
   speed: Speed
   actorId: string | null
@@ -59,6 +61,7 @@ interface StudioState {
   openDeviceDialog(open: boolean): void
   setTimeMode(mode: TimeMode): void
   focusSlot(slotId: number | null): void
+  openSlotModal(slotId: number | null): void
   setDemo(on: boolean): void
   setSpeed(speed: Speed): void
   setActor(userId: string): void
@@ -110,6 +113,7 @@ export const useStudio = create<StudioState>((set, get) => ({
   deviceDialog: false,
   timeMode: readPref<TimeMode>('ss.time', ['auto', 'day', 'night'], 'auto'),
   focusSlotId: null,
+  slotModalId: null,
   demo: false,
   speed: 1,
   actorId: studioClient.currentUserId(),
@@ -137,6 +141,7 @@ export const useStudio = create<StudioState>((set, get) => ({
     set({ timeMode })
   },
   focusSlot: (focusSlotId) => set({ focusSlotId }),
+  openSlotModal: (slotModalId) => set({ slotModalId }),
   setDemo: (on) => {
     stopDemo?.()
     stopDemo = null
@@ -153,7 +158,8 @@ export const useStudio = create<StudioState>((set, get) => ({
     warned.clear()
     set({ actorId: userId, page: 'board', claimFor: null })
   },
-  openClaim: (claimFor) => set({ claimFor }),
+  // The claim dialog replaces the slot modal rather than stacking on top of it.
+  openClaim: (claimFor) => set(claimFor !== null ? { claimFor, slotModalId: null } : { claimFor }),
   pushToast: (t) => set((s) => ({ toasts: [...s.toasts.slice(-4), { ...t, id: ++toastSeq }] })),
   dismissToast: (id) => set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
   act: async (fn) => {

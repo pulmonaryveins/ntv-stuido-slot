@@ -4,6 +4,7 @@ import { MIN_PASSWORD, useAuth } from '../store/auth'
 import { api } from '../lib/backend'
 import { InfoTip } from './controls'
 import { PixelIcon, type IconName } from './PixelIcon'
+import { Logo } from './Logo'
 import { Loader, Spinner } from './Loader'
 
 type Mode = 'signin' | 'register' | 'forgot'
@@ -156,8 +157,8 @@ function Shell({ title, subtitle, children }: { title: string; subtitle: string;
     <main className="grid h-full overflow-y-auto lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
       <aside className="on-dark relative hidden flex-col justify-between overflow-hidden border-r-2 border-black bg-[#121213] p-10 lg:flex xl:p-14">
         <div className="flex items-center gap-3">
-          <span aria-hidden className="px-btn grid size-11 place-items-center bg-accent">
-            <PixelIcon name="brush" size={26} />
+          <span aria-hidden className="px-btn grid size-11 place-items-center bg-[#2b3445]">
+            <Logo size={32} />
           </span>
           <span className="font-pixel text-xl font-semibold">Studio Slots</span>
         </div>
@@ -200,8 +201,8 @@ function Shell({ title, subtitle, children }: { title: string; subtitle: string;
         <div className="w-full max-w-md">
           {/* Compact brand on small screens (the side panel is hidden there). */}
           <div className="mb-6 flex items-center gap-3 lg:hidden">
-            <span aria-hidden className="px-btn grid size-10 place-items-center bg-accent">
-              <PixelIcon name="brush" size={24} />
+            <span aria-hidden className="px-btn grid size-10 place-items-center bg-[#2b3445]">
+              <Logo size={28} />
             </span>
             <span className="font-pixel text-lg font-semibold">Studio Slots</span>
           </div>

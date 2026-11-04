@@ -7,7 +7,7 @@ import { AuthScreen, InactiveScreen, LoadingScreen, NewPasswordScreen } from './
 import { ActivityBar, Loader } from './ui/Loader'
 import { TopBar } from './ui/TopBar'
 import { Panel } from './ui/Panel'
-import { ClaimDialog, DeviceNameDialog } from './ui/Dialogs'
+import { ClaimDialog, DeviceNameDialog, SlotDialog } from './ui/Dialogs'
 import { Toasts } from './ui/Toasts'
 import { AdminPage } from './ui/admin/AdminPage'
 
@@ -111,6 +111,7 @@ function Board() {
       </div>
       <ClaimDialog />
       <DeviceNameDialog />
+      <SlotDialog />
       <Toasts />
     </Tooltip.Provider>
   )

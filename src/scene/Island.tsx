@@ -2,8 +2,8 @@ import { useMemo } from 'react'
 import { Voxels } from './voxel'
 import { buildWorld } from './world'
 
-/** The static blocky office (floor, walls, studios, server racks, plants), built once. */
-export function World({ buildings }: { buildings: number }) {
-  const world = useMemo(() => buildWorld(buildings), [buildings])
+/** The static blocky office (floor, walls, server racks), built once. */
+export function World() {
+  const world = useMemo(() => buildWorld(), [])
   return <Voxels world={world} />
 }

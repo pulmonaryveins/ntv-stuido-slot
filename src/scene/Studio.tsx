@@ -9,12 +9,13 @@ import { useNow } from '../ui/useNow'
 import { useStudio } from '../store/studio'
 import { studioClient } from '../data'
 import { B, C, GEO, GLOW, PAL } from './kit'
+import { TaskChair } from './Furniture'
 import { useAnchor } from './anchors'
 import { PixelIcon, type IconName } from '../ui/PixelIcon'
 import { UserAvatar } from '../ui/UserAvatar'
 import { CUBE_BACK, CUBE_FRONT, CUBE_W, buildingX, type DeskSpot } from './layout'
 
-const BOOTH_ACCENT = ['#c9a670', '#7a5a3c']
+const BOOTH_ACCENT = ['#5b9bd5', '#2fa59a']
 
 function useSignTexture(text: string, accent: string) {
   return useMemo(() => {
@@ -22,14 +23,14 @@ function useSignTexture(text: string, accent: string) {
     canvas.width = 512
     canvas.height = 128
     const ctx = canvas.getContext('2d')!
-    // Wooden sign board: plank face with grain lines, dark lettering.
-    ctx.fillStyle = '#b8945f'
+    // Office sign: dark slate plate with a coloured edge and white lettering.
+    ctx.fillStyle = '#272b33'
     ctx.fillRect(0, 0, 512, 128)
-    ctx.fillStyle = '#a3824f'
+    ctx.fillStyle = '#31363f'
     for (let y = 0; y < 128; y += 32) ctx.fillRect(0, y, 512, 3)
     ctx.fillStyle = accent
     ctx.fillRect(0, 0, 18, 128)
-    ctx.fillStyle = '#2a1d10'
+    ctx.fillStyle = '#f2f4f7'
     ctx.font = "600 62px 'Pixelify Sans', monospace"
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
@@ -51,8 +52,8 @@ const NOTE_COLORS = ['#f7e26b', '#f59fb5', '#8fd3f0', '#b6e388']
 export function Building({ index, label }: { index: number; label: string }) {
   const bx = buildingX(index)
   const accent = BOOTH_ACCENT[index % BOOTH_ACCENT.length]!
-  // Account 1 in oak, account 2 in spruce planks.
-  const fabric = index === 0 ? '#b8945f' : '#7a5a3c'
+  // Fabric partitions: account 1 slate blue, account 2 teal.
+  const fabric = index === 0 ? '#5d7ea3' : '#3f8f8a'
   const sign = useSignTexture(label, accent)
   const depth = CUBE_FRONT - CUBE_BACK
   const midZ = (CUBE_BACK + CUBE_FRONT) / 2
@@ -60,8 +61,8 @@ export function Building({ index, label }: { index: number; label: string }) {
   const Panel = ({ x, z, w, d }: { x: number; z: number; w: number; d: number }) => (
     <group>
       <B p={[x, PANEL_H / 2, z]} s={[w, PANEL_H, d]} c={fabric} cast />
-      <B p={[x, PANEL_H + 0.05, z]} s={[w + 0.08, 0.1, d + 0.08]} c="#6b4f2e" />
-      <B p={[x, 0.06, z]} s={[w + 0.06, 0.12, d + 0.06]} c="#8a8a8a" />
+      <B p={[x, PANEL_H + 0.05, z]} s={[w + 0.08, 0.1, d + 0.08]} c="#aab0b8" />
+      <B p={[x, 0.06, z]} s={[w + 0.06, 0.12, d + 0.06]} c="#7d848d" />
     </group>
   )
 
@@ -88,12 +89,12 @@ export function Building({ index, label }: { index: number; label: string }) {
       <B p={[bx, PANEL_H + 0.4, CUBE_FRONT - 0.35]} s={[0.3, 0.22, 0.3]} c={PAL.leaf} />
       {/* account sign hung above the pod */}
       {[-1.5, 1.5].map((dx) => (
-        <B key={dx} p={[bx + dx, PANEL_H + 0.85, CUBE_BACK]} s={[0.12, 1.6, 0.12]} c="#6b4f2e" />
+        <B key={dx} p={[bx + dx, PANEL_H + 0.85, CUBE_BACK]} s={[0.12, 1.6, 0.12]} c="#aab0b8" />
       ))}
-      <mesh geometry={GEO.plane} position={[bx, PANEL_H + 2.1, CUBE_BACK + 0.04]} scale={[3.4, 0.85, 1]}>
+      <mesh geometry={GEO.plane} position={[bx, PANEL_H + 2.1, CUBE_BACK + 0.07]} scale={[3.4, 0.85, 1]}>
         <meshBasicMaterial map={sign} toneMapped={false} />
       </mesh>
-      <B p={[bx, PANEL_H + 2.1, CUBE_BACK]} s={[3.6, 1.0, 0.1]} c="#4e3a22" />
+      <B p={[bx, PANEL_H + 2.1, CUBE_BACK]} s={[3.6, 1.0, 0.1]} c="#aab0b8" />
     </group>
   )
 }
@@ -101,6 +102,7 @@ export function Building({ index, label }: { index: number; label: string }) {
 /** Desk with laptop, chair, mug, lamp; clickable to focus the camera. */
 export function Desk({ spot, slot }: { spot: DeskSpot; slot: Slot }) {
   const focusSlot = useStudio((s) => s.focusSlot)
+  const openSlotModal = useStudio((s) => s.openSlotModal)
   const ring = useRef<THREE.Mesh>(null)
   const ringMat = useMemo(() => new THREE.MeshBasicMaterial({ color: '#4caf7a', transparent: true, opacity: 0.7 }), [])
   const [dx, dz] = spot.desk
@@ -118,6 +120,7 @@ export function Desk({ spot, slot }: { spot: DeskSpot; slot: Slot }) {
       onClick={(e) => {
         e.stopPropagation()
         focusSlot(slot.id)
+        openSlotModal(slot.id)
       }}
       onPointerOver={(e) => {
         e.stopPropagation()
@@ -129,10 +132,10 @@ export function Desk({ spot, slot }: { spot: DeskSpot; slot: Slot }) {
     >
       <mesh ref={ring} geometry={GEO.ring} material={ringMat} position={[dx, 0.03, (dz + spot.chair[1]) / 2]} rotation={[-Math.PI / 2, 0, 0]} scale={4.6} />
       {/* cubicle work surface fixed to the back panel, pedestal drawers underneath */}
-      <B p={[dx, 0.76, dz]} s={[CUBE_W - 0.2, 0.1, 0.9]} c="#c9a670" cast />
-      <B p={[dx, 0.7, dz + 0.44]} s={[CUBE_W - 0.2, 0.06, 0.04]} c="#6b4f2e" />
+      <B p={[dx, 0.76, dz]} s={[CUBE_W - 0.2, 0.1, 0.9]} c="#e4e7eb" cast />
+      <B p={[dx, 0.7, dz + 0.44]} s={[CUBE_W - 0.2, 0.06, 0.04]} c="#aab0b8" />
       {/* drawer chest under the desk */}
-      <B p={[dx + spot.side * 1.25, 0.36, dz]} s={[0.6, 0.72, 0.8]} c="#5e4630" cast />
+      <B p={[dx + spot.side * 1.25, 0.36, dz]} s={[0.6, 0.72, 0.8]} c="#4a505a" cast />
       {[0.2, 0.45].map((y) => (
         <B key={y} p={[dx + spot.side * 1.25, y, dz + 0.41]} s={[0.12, 0.06, 0.02]} c="#c9c9c9" />
       ))}
@@ -154,16 +157,9 @@ export function Desk({ spot, slot }: { spot: DeskSpot; slot: Slot }) {
       <mesh geometry={GEO.box} material={GLOW.lamp} position={[dx - spot.side * 1.4, 1.26, dz - 0.15]} scale={[0.22, 0.08, 0.22]} />
       {/* black swivel chair; the backrest is behind the user, toward the cubicle opening */}
       <group position={[spot.chair[0], 0, spot.chair[1]]}>
-        {[0, 1, 2, 3, 4].map((i) => (
-          <B key={i} p={[Math.sin((i / 5) * Math.PI * 2) * 0.17, 0.05, Math.cos((i / 5) * Math.PI * 2) * 0.17]} s={[0.07, 0.05, 0.34]} r={(i / 5) * Math.PI * 2} c={PAL.ink} />
-        ))}
-        <B p={[0, 0.32, 0]} s={[0.07, 0.5, 0.07]} c={PAL.metal} />
-        <B p={[0, 0.6, 0]} s={[0.62, 0.12, 0.58]} c="#7a5a3c" cast />
-        <B p={[0, 1.02, 0.29]} s={[0.56, 0.7, 0.08]} c="#7a5a3c" cast />
-        <B p={[0, 1.42, 0.29]} s={[0.34, 0.16, 0.08]} c="#4e3a22" />
-        {[-0.33, 0.33].map((x) => (
-          <B key={x} p={[x, 0.82, 0]} s={[0.06, 0.06, 0.38]} c={PAL.ink} />
-        ))}
+        <group position={[0, 0.08, 0]} rotation={[0, Math.PI, 0]}>
+          <TaskChair c="#2d3138" trim="#3b4049" head />
+        </group>
       </group>
     </group>
   )
@@ -173,6 +169,7 @@ export function Desk({ spot, slot }: { spot: DeskSpot; slot: Slot }) {
 export function DeskPlate({ spot, slot, snapshot, actorId }: { spot: DeskSpot; slot: Slot; snapshot: Snapshot; actorId: string | null }) {
   const now = useNow(1000)
   const focusSlot = useStudio((s) => s.focusSlot)
+  const openSlotModal = useStudio((s) => s.openSlotModal)
   const view = deriveSlotView(slot, now)
   const accent = slotAccent(slot, view)
   const holder = snapshot.profiles.find((p) => p.id === (slot.user_id ?? slot.hold_user_id))
@@ -194,23 +191,31 @@ export function DeskPlate({ spot, slot, snapshot, actorId }: { spot: DeskSpot; s
 
   // Compact by default (desks sit close together); details are on the card in the side panel.
   return (
-    <div ref={anchor} className="absolute left-0 top-0 will-change-transform">
+    <div ref={anchor} className="group absolute left-0 top-0 origin-top-left will-change-transform">
       <button
         type="button"
         tabIndex={-1}
-        onClick={() => focusSlot(slot.id)}
+        onClick={() => {
+          focusSlot(slot.id)
+          openSlotModal(slot.id)
+        }}
         title={end !== null ? `Until ${formatClock(end)}` : undefined}
-        className={`on-dark block w-40 select-none border-2 border-black bg-[#1e1e1f] text-left text-ink shadow-[2px_2px_0_rgba(0,0,0,0.35)] ${pulse ? 'pulse' : ''} ${
+        className={`on-dark block w-40 select-none group-data-[compact=1]:w-auto group-data-[compact=1]:min-w-24 border-2 border-black bg-[#1e1e1f] text-left text-ink shadow-[2px_2px_0_rgba(0,0,0,0.35)] ${pulse ? 'pulse' : ''} ${
           mine ? 'outline-2 outline-accent' : ''
         }`}
         style={{ ['--pulse-color' as string]: accent }}
       >
         <div className="flex items-center gap-1 px-1.5 py-0.5 text-black" style={{ background: accent }}>
           <PixelIcon name={icon} size={10} />
+          {holder && (
+            <span className="hidden group-data-[compact=1]:inline-flex">
+              <UserAvatar profile={holder} size={12} />
+            </span>
+          )}
           <span className="font-pixel text-[10px] uppercase">Slot {slot.slot_number}</span>
           <span className="ml-auto font-pixel text-[10px] uppercase tabular-nums">{state}</span>
         </div>
-        <div className="flex items-center gap-1.5 px-1.5 py-1 text-[11px] font-semibold leading-none">
+        <div className="flex items-center gap-1.5 px-1.5 py-1 text-[11px] font-semibold leading-none group-data-[compact=1]:hidden">
           {holder ? (
             <>
               <UserAvatar profile={holder} size={18} />
@@ -228,7 +233,7 @@ export function DeskPlate({ spot, slot, snapshot, actorId }: { spot: DeskSpot; s
           )}
         </div>
         {slot.user_id && (
-          <div className="h-1 bg-black/60">
+          <div className="h-1 bg-black/60 group-data-[compact=1]:h-0.5">
             <div className="h-full" style={{ width: `${Math.min(1, view.progress) * 100}%`, background: accent }} />
           </div>
         )}
