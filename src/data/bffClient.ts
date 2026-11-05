@@ -100,6 +100,9 @@ export class BffStudioClient implements StudioClient {
   setMyDevice(deviceName: string) {
     return this.call<Profile>('update_my_profile', { p_device_name: deviceName })
   }
+  setMyCharacter(character: string | null) {
+    return this.call<Profile>('update_my_profile', { p_character: character ?? '' })
+  }
   releaseSlot(slotId: number) {
     return this.call<void>('release_slot', { p_slot_id: slotId })
   }

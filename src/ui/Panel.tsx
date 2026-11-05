@@ -146,8 +146,11 @@ function AccountSection({
         )}
       </p>
       <div className={wide ? 'grid gap-3' : 'space-y-3'}>
-        {slots.map((slot) => (
-          <SlotCard key={slot.id} slot={slot} snapshot={snapshot} viewer={viewer} now={now} />
+        {slots.map((slot, i) => (
+          // Wrapper rises in (staggered) once on load; the card itself keeps its own pulse animation.
+          <div key={slot.id} className="ss-rise" style={{ ['--d' as string]: `${i * 60}ms` }}>
+            <SlotCard slot={slot} snapshot={snapshot} viewer={viewer} now={now} />
+          </div>
         ))}
       </div>
     </section>
@@ -222,7 +225,7 @@ function WaitingList({ snapshot, viewer, now }: { snapshot: Snapshot; viewer: Vi
                     aria-label={`Remove ${p?.name ?? 'user'} from waiting list`}
                     onClick={() => void act((c) => c.adminRemoveFromQueue(q.user_id))}
                   >
-                    ✕
+                    <PixelIcon name="close" size={12} />
                   </Button>
                 )}
               </li>

@@ -41,6 +41,14 @@ interface StudioState {
   focusSlotId: number | null
   /** Slot whose details/actions modal is open (opened by clicking a desk in the 3D view). */
   slotModalId: number | null
+  /** User whose profile preview is open (opened by clicking a character in the 3D view). */
+  profileModalId: string | null
+  /** Character under the mouse in the 3D view (shows their nameplate). */
+  hoverUserId: string | null
+  /** The character customization editor. */
+  customizeOpen: boolean
+  /** The "What's new" update log. */
+  whatsNewOpen: boolean
   demo: boolean
   speed: Speed
   actorId: string | null
@@ -62,6 +70,10 @@ interface StudioState {
   setTimeMode(mode: TimeMode): void
   focusSlot(slotId: number | null): void
   openSlotModal(slotId: number | null): void
+  openProfile(userId: string | null): void
+  setHoverUser(userId: string | null): void
+  openCustomize(open: boolean): void
+  openWhatsNew(open: boolean): void
   setDemo(on: boolean): void
   setSpeed(speed: Speed): void
   setActor(userId: string): void
@@ -114,6 +126,10 @@ export const useStudio = create<StudioState>((set, get) => ({
   timeMode: readPref<TimeMode>('ss.time', ['auto', 'day', 'night'], 'auto'),
   focusSlotId: null,
   slotModalId: null,
+  profileModalId: null,
+  hoverUserId: null,
+  customizeOpen: false,
+  whatsNewOpen: false,
   demo: false,
   speed: 1,
   actorId: studioClient.currentUserId(),
@@ -142,6 +158,14 @@ export const useStudio = create<StudioState>((set, get) => ({
   },
   focusSlot: (focusSlotId) => set({ focusSlotId }),
   openSlotModal: (slotModalId) => set({ slotModalId }),
+  // One modal at a time: the profile preview replaces an open slot modal.
+  // The editor replaces the profile card when opened from it.
+  openCustomize: (customizeOpen) => set(customizeOpen ? { customizeOpen, profileModalId: null } : { customizeOpen }),
+  openWhatsNew: (whatsNewOpen) => set({ whatsNewOpen }),
+  setHoverUser: (hoverUserId) => {
+    if (get().hoverUserId !== hoverUserId) set({ hoverUserId })
+  },
+  openProfile: (profileModalId) => set(profileModalId !== null ? { profileModalId, slotModalId: null } : { profileModalId }),
   setDemo: (on) => {
     stopDemo?.()
     stopDemo = null

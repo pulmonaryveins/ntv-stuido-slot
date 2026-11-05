@@ -148,6 +148,18 @@ users, rate limit, realtime join. Real concurrency is not covered there (single 
   and so on, with a "#n waiting" tag (it pulses "seat ready" when their reservation starts).
   Spots live in `LOUNGE_SPOTS` in `src/scene/layout.ts`.
 
+### Character customization
+
+Account menu → **Customize character** (or **Customize** on your own profile card, opened by
+clicking your character). Pick a **hero** from the character pack, or **build your own** blocky
+character: skin, hair colour and style, shirt, pants, eyes and an accessory (headphones, glasses,
+beanie, cap, crown). A live 3D preview turns on a grass block. Everyone sees the new look at once,
+in 3D and as the profile picture.
+
+Stored in `profiles.character` as a short code (`hero:N` or `c:` + seven palette indices, see
+`src/lib/look.ts`), validated by a check constraint; null keeps the automatic random hero.
+Migration: `20261105120000_character.sql` (run `npm run db:push`).
+
 ### Optional character pack
 
 If `public/models/superhero_minecraft_character.glb` exists, avatars use its characters; each

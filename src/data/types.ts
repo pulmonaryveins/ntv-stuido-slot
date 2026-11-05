@@ -67,6 +67,8 @@ export interface StudioActions {
   setSlotDevice(slotId: number, deviceName: string): Promise<Slot>
   /** Set the current user's remembered Adobe device name. */
   setMyDevice(deviceName: string): Promise<Profile>
+  /** Set the current user's character code (see src/lib/look.ts); null = back to automatic. */
+  setMyCharacter(character: string | null): Promise<Profile>
   releaseSlot(slotId: number): Promise<void>
   adminForceRelease(slotId: number): Promise<void>
   adminRemoveFromQueue(userId: string): Promise<void>

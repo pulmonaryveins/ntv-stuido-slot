@@ -35,15 +35,22 @@ const LIGHTS: { p: [number, number, number]; k: number }[] = [
   { p: [SUPPLIES[0] - 1, 3, SUPPLIES[1]], k: 0.6 },
 ]
 
-const FLOOR_LAMPS: XZ[] = [
-  [-19.3, -6],
-  [-9.7, -2.5],
-  [9.7, -2.5],
-  [-6.4, 12.5],
-  [6.4, 12.5],
-  [-9.2, -13.2],
-  [9.4, -13.4],
+/**
+ * Arc floor lamps. `dir` is the side the arm and shade reach toward (+1 = +x, -1 = -x): always
+ * over the zone the lamp lights, so mirrored pairs stay mirrored and no shade pokes through a wall.
+ */
+const ARM = 0.4
+const FLOOR_LAMPS: { p: XZ; dir: 1 | -1 }[] = [
+  { p: [-19.3, -6], dir: 1 }, // left wall, into the room
+  { p: [-9.7, -2.5], dir: 1 }, // left pod, over its desks
+  { p: [9.7, -2.5], dir: -1 }, // right pod, over its desks
+  { p: [-6.4, 12.5], dir: 1 }, // collaboration table, both ends leaning in
+  { p: [6.4, 12.5], dir: -1 },
+  { p: [-9.2, -13.2], dir: 1 }, // reading nook, over the armchairs
+  { p: [9.1, -13.2], dir: -1 }, // phone booth; clear of the meeting room glass at x = 10
 ]
+/** Where a lamp's light lands: under its shade. */
+const lampX = (l: (typeof FLOOR_LAMPS)[number]) => l.p[0] + ARM * l.dir
 
 export function OfficeLighting() {
   const cove = useMemo(() => new THREE.MeshStandardMaterial({ color: '#fff4de', emissive: '#ffe2b0', emissiveIntensity: 0.3, flatShading: true }), [])
@@ -123,13 +130,13 @@ export function OfficeLighting() {
 
       {/* each floor lamp throws its own pool and has a halo around its shade */}
       <group ref={lampPools}>
-        {FLOOR_LAMPS.map(([x, z], i) => (
-          <mesh key={i} geometry={GEO.plane} material={glow} position={[x + 0.4, 0.06, z]} rotation={[-Math.PI / 2, 0, 0]} scale={[5, 5, 1]} renderOrder={4} />
+        {FLOOR_LAMPS.map((l, i) => (
+          <mesh key={i} geometry={GEO.plane} material={glow} position={[lampX(l), 0.06, l.p[1]]} rotation={[-Math.PI / 2, 0, 0]} scale={[5, 5, 1]} renderOrder={4} />
         ))}
       </group>
       <group ref={halos}>
-        {FLOOR_LAMPS.map(([x, z], i) => (
-          <mesh key={i} geometry={GEO.plane} material={halo} position={[x + 0.4, 1.9, z]} scale={[2.2, 2.2, 1]} renderOrder={5} />
+        {FLOOR_LAMPS.map((l, i) => (
+          <mesh key={i} geometry={GEO.plane} material={halo} position={[lampX(l), 1.9, l.p[1]]} scale={[2.2, 2.2, 1]} renderOrder={5} />
         ))}
       </group>
 
@@ -138,14 +145,15 @@ export function OfficeLighting() {
       ))}
 
       {/* arc floor lamps: weighted base, slim stem, a curved arm and a glowing drum shade */}
-      {FLOOR_LAMPS.map(([x, z], i) => (
-        <group key={i} position={[x, 0, z]}>
+      {/* Modelled reaching +x; a half turn makes it reach -x (the lamp is symmetric in z). */}
+      {FLOOR_LAMPS.map((l, i) => (
+        <group key={i} position={[l.p[0], 0, l.p[1]]} rotation={[0, l.dir < 0 ? Math.PI : 0, 0]}>
           <C p={[0, 0.03, 0]} rad={0.26} h={0.06} c={PAL.metalDark} />
           <B p={[0, 1.0, 0]} s={[0.05, 2.0, 0.05]} c={PAL.metal} cast />
-          <B p={[0.2, 2.05, 0]} s={[0.4, 0.05, 0.05]} c={PAL.metal} />
-          <C p={[0.4, 1.92, 0]} rad={0.24} h={0.3} c="#f7efdc" />
-          <mesh geometry={GEO.box} material={shade} position={[0.4, 1.78, 0]} scale={[0.4, 0.04, 0.4]} />
-          <mesh geometry={GEO.box} material={shade} position={[0.4, 2.08, 0]} scale={[0.3, 0.03, 0.3]} />
+          <B p={[ARM / 2, 2.05, 0]} s={[ARM, 0.05, 0.05]} c={PAL.metal} />
+          <C p={[ARM, 1.92, 0]} rad={0.24} h={0.3} c="#f7efdc" />
+          <mesh geometry={GEO.box} material={shade} position={[ARM, 1.78, 0]} scale={[0.4, 0.04, 0.4]} />
+          <mesh geometry={GEO.box} material={shade} position={[ARM, 2.08, 0]} scale={[0.3, 0.03, 0.3]} />
         </group>
       ))}
     </group>

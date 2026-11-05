@@ -29,6 +29,8 @@ type ProfileRow = {
   avatar_color: string
   /** The user's remembered Adobe device name. */
   device_name: string | null
+  /** 'hero:N' or 'c:' + 7 palette indices (see src/lib/look.ts); null = automatic. */
+  character: string | null
   created_at: string
 }
 
@@ -95,6 +97,8 @@ export type Database = {
           p_work_role?: Database['public']['Enums']['work_role'] | null
           p_avatar_color?: string | null
           p_device_name?: string | null
+          /** null = unchanged, '' = clear. */
+          p_character?: string | null
         }
         Returns: ProfileRow
       }

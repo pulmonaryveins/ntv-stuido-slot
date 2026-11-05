@@ -7,6 +7,7 @@ import { Segmented, Select } from './controls'
 import { UserAvatar } from './UserAvatar'
 import { PixelIcon, type IconName } from './PixelIcon'
 import { Logo } from './Logo'
+import { useHasUnseenUpdates } from './WhatsNew'
 
 export function TopBar() {
   const s = useStudio()
@@ -137,7 +138,7 @@ function NavTab({
       <PixelIcon name={icon} size={14} />
       {children}
       {badge > 0 && (
-        <span className="bg-reserved px-1.5 font-sans text-[11px] font-bold text-black" aria-label={`${badge} waiting for approval`}>
+        <span className="ss-badge bg-reserved px-1.5 font-sans text-[11px] font-bold text-black" aria-label={`${badge} waiting for approval`}>
           {badge}
         </span>
       )}
@@ -154,13 +155,19 @@ function AccountMenu({ id, name, color, role, device }: { id: string; name: stri
   const theme = useStudio((s) => s.theme)
   const setTheme = useStudio((s) => s.setTheme)
   const openDeviceDialog = useStudio((s) => s.openDeviceDialog)
+  const openCustomize = useStudio((s) => s.openCustomize)
+  const openWhatsNew = useStudio((s) => s.openWhatsNew)
+  const hasUpdates = useHasUnseenUpdates()
   return (
     <Menu.Root modal={false}>
       <Menu.Trigger
         aria-label={`Account menu for ${name}`}
         className="group inline-flex h-11 items-center gap-2.5 border-2 border-line bg-surface-2 pl-1 pr-3 text-sm shadow-[inset_0_-3px_0_var(--lip),inset_0_2px_0_var(--hi)] hover:brightness-110 data-[state=open]:outline-2 data-[state=open]:outline-accent"
       >
-        <UserAvatar profile={{ id, name, avatar_color: color }} size={34} />
+        <span className="relative">
+          <UserAvatar profile={{ id, name, avatar_color: color }} size={34} />
+          {hasUpdates && <span aria-label="New updates" className="ss-badge absolute -right-1 -top-1 size-3 border-2 border-black bg-reserved" />}
+        </span>
         <span className="hidden text-left leading-tight sm:block">
           <span className="block max-w-32 truncate font-semibold leading-tight">{name}</span>
           {/* The hostname is what Adobe lists: keep it prominent. */}
@@ -171,7 +178,7 @@ function AccountMenu({ id, name, color, role, device }: { id: string; name: stri
         </svg>
       </Menu.Trigger>
       <Menu.Portal>
-        <Menu.Content align="end" sideOffset={6} className="px-panel z-50 w-60 p-1">
+        <Menu.Content align="end" sideOffset={6} className="ss-menu px-panel z-50 w-60 p-1">
           <div className="flex items-center gap-3 px-2.5 py-2">
             <UserAvatar profile={{ id, name, avatar_color: color }} size={44} />
             <div className="min-w-0">
@@ -180,6 +187,15 @@ function AccountMenu({ id, name, color, role, device }: { id: string; name: stri
             </div>
           </div>
           <Menu.Separator className="my-1 h-0.5 bg-line" />
+          <Menu.Item className={itemClass} onSelect={() => openCustomize(true)}>
+            <PixelIcon name="user" size={14} />
+            <span className="flex-1">Customize character</span>
+          </Menu.Item>
+          <Menu.Item className={itemClass} onSelect={() => openWhatsNew(true)}>
+            <PixelIcon name="sparkle" size={14} />
+            <span className="flex-1">What's new</span>
+            {hasUpdates && <span className="font-pixel border-2 border-black bg-reserved px-1 text-[10px] uppercase text-black">New</span>}
+          </Menu.Item>
           <Menu.Item className={itemClass} onSelect={() => openDeviceDialog(true)}>
             <PixelIcon name="block" size={14} />
             <span className="flex-1">Device name</span>

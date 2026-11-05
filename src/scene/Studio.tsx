@@ -14,6 +14,7 @@ import { useAnchor } from './anchors'
 import { PixelIcon, type IconName } from '../ui/PixelIcon'
 import { UserAvatar } from '../ui/UserAvatar'
 import { CUBE_BACK, CUBE_FRONT, CUBE_W, buildingX, type DeskSpot } from './layout'
+import { setStageCursor } from './cursor'
 
 const BOOTH_ACCENT = ['#5b9bd5', '#2fa59a']
 
@@ -124,10 +125,10 @@ export function Desk({ spot, slot }: { spot: DeskSpot; slot: Slot }) {
       }}
       onPointerOver={(e) => {
         e.stopPropagation()
-        document.body.style.cursor = 'pointer'
+        setStageCursor('pointer')
       }}
       onPointerOut={() => {
-        document.body.style.cursor = ''
+        setStageCursor(null)
       }}
     >
       <mesh ref={ring} geometry={GEO.ring} material={ringMat} position={[dx, 0.03, (dz + spot.chair[1]) / 2]} rotation={[-Math.PI / 2, 0, 0]} scale={4.6} />

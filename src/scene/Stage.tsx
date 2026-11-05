@@ -16,9 +16,11 @@ import { CITY_GLOW } from './City'
 import { glassMaterial } from './voxel'
 import { Building, Desk, DeskPlate } from './Studio'
 import { RenderFarm } from './RenderFarm'
-import { Avatars, Celebrations, Dog, KnockBubble, QueueTag, YouMarker, activeKnockers } from './Avatars'
+import { Avatars, Celebrations, Dog, HoverTag, KnockBubble, QueueTag, YouMarker, activeKnockers } from './Avatars'
 import { useCharacterTemplates } from './Characters'
 import { AnchorProjector } from './anchors'
+import { setStageCursor } from './cursor'
+import { PixelIcon } from '../ui/PixelIcon'
 
 const AZIMUTH = THREE.MathUtils.degToRad(32)
 const ELEVATION = THREE.MathUtils.degToRad(33)
@@ -70,6 +72,8 @@ export default function Stage({ active }: { active: boolean }) {
   const focusSlot = useStudio((s) => s.focusSlot)
   const timeMode = useStudio((s) => s.timeMode)
   const sceneEvents = useStudio((s) => s.sceneEvents)
+  const hoverUserId = useStudio((s) => s.hoverUserId)
+  const hovered = snapshot?.profiles.find((p) => p.id === hoverUserId && p.active)
   const reducedMotion = usePrefersReducedMotion()
   const visible = usePageVisible()
   const now = useNow(1000)
@@ -93,13 +97,16 @@ export default function Stage({ active }: { active: boolean }) {
   const mistColor = lerpColor(SKY_HORIZON_DAY, SKY_HORIZON_NIGHT, night)
 
   return (
-    <div className="absolute inset-0" style={{ background: backdrop }}>
+    <div className="ss-stage absolute inset-0" style={{ background: backdrop }}>
       <Canvas
         shadows={{ type: THREE.PCFShadowMap }}
         dpr={[1, 1.5]}
         frameloop={active && visible ? 'always' : 'never'}
         gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
-        onPointerMissed={() => (document.body.style.cursor = '')}
+        onPointerMissed={() => {
+          setStageCursor(null)
+          useStudio.getState().setHoverUser(null)
+        }}
         aria-label="3D studio. Use the List view for keyboard access."
       >
         <OrthographicCamera
@@ -172,6 +179,7 @@ export default function Stage({ active }: { active: boolean }) {
         {snapshot && actorId && snapshot.profiles.some((p) => p.id === actorId && p.active) && !snapshot.slots.some((sl) => sl.user_id === actorId) && (
           <YouMarker userId={actorId} name={snapshot.profiles.find((p) => p.id === actorId)!.name} />
         )}
+        {snapshot && hovered && <HoverTag key={hovered.id} profile={hovered} snapshot={snapshot} isMe={hovered.id === actorId} />}
         {snapshot &&
           activeKnockers(snapshot, sceneEvents, performance.now()).map((id) => <KnockBubble key={id} userId={id} />)}
         {snapshot &&
@@ -193,9 +201,10 @@ export default function Stage({ active }: { active: boolean }) {
             <button
               type="button"
               onClick={() => focusSlot(null)}
-              className="pointer-events-auto px-panel px-2.5 py-1.5 text-sm font-semibold text-ink shadow"
+              className="pointer-events-auto px-panel inline-flex items-center gap-1.5 px-2.5 py-1.5 text-sm font-semibold text-ink shadow"
             >
-              ← Overview
+              <PixelIcon name="arrowLeft" size={14} />
+              Overview
             </button>
             <span className="rounded-lg bg-surface/80 px-2 py-1 text-xs text-ink shadow">
               {focusedAccount} · Slot {focused?.slot_number} {focusedName ? `· ${focusedName}` : '· free'}

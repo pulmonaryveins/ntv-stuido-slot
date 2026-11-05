@@ -15,6 +15,7 @@ import {
 import type { Json } from '../types/database'
 import { createSeedState, SEED_IDS, type SeedState } from './seed'
 import { MINUTE, toIso, toMs } from '../lib/format'
+import { CHARACTER_RE } from '../lib/look'
 
 
 /** Mock time source. Speed multiplies how fast mock time runs vs. real time. */
@@ -140,6 +141,7 @@ export class MockStudioClient implements StudioClient {
       claimSlot: (id, status, minutes, device) => call(() => this.doClaim(userId, id, status, minutes, device ?? null)),
       setSlotDevice: (id, device) => call(() => this.doSetSlotDevice(userId, id, device)),
       setMyDevice: (device) => call(() => this.doSetMyDevice(userId, device)),
+      setMyCharacter: (character) => call(() => this.doSetMyCharacter(userId, character)),
       releaseSlot: (id) => call(() => this.doRelease(userId, id)),
       adminForceRelease: (id) => call(() => this.doForceRelease(userId, id)),
       adminRemoveFromQueue: (uid) => call(() => this.doRemoveFromQueue(userId, uid)),
@@ -169,6 +171,9 @@ export class MockStudioClient implements StudioClient {
   }
   setMyDevice(deviceName: string) {
     return this.me().setMyDevice(deviceName)
+  }
+  setMyCharacter(character: string | null) {
+    return this.me().setMyCharacter(character)
   }
   releaseSlot(slotId: number) {
     return this.me().releaseSlot(slotId)
@@ -437,6 +442,16 @@ export class MockStudioClient implements StudioClient {
     const p = this.profile(uid)!
     if (device && !this.deviceOwnerIsFree(device, uid)) fail('device_taken')
     if (device) p.device_name = device
+    this.version++
+    return p
+  }
+
+  /** Same rule as the profiles.character check constraint. */
+  private doSetMyCharacter(uid: string, character: string | null): Profile {
+    if (character !== null && !CHARACTER_RE.test(character)) fail('invalid_input')
+    const p = this.profile(uid)!
+    p.character = character
+    this.log(null, uid, 'character_change', {})
     this.version++
     return p
   }

@@ -347,3 +347,37 @@ describe('Adobe device names (seeded)', () => {
     expect(await c.su(`select device_name from slots where id = 1`)).toEqual([{ device_name: null }])
   })
 })
+
+describe('Character customization (seeded)', () => {
+  let db: PGlite
+  let c: ReturnType<typeof client>
+  beforeAll(async () => {
+    db = await freshDb(true)
+    c = client(db)
+  })
+
+  it('stores a hero or a custom build, and clears back to automatic', async () => {
+    expect(await c.code(LENA, `select update_my_profile(p_character => 'hero:3')`)).toBe('ok')
+    expect(await c.su(`select character from profiles where id = '${LENA}'`)).toEqual([{ character: 'hero:3' }])
+    expect(await c.code(LENA, `select update_my_profile(p_character => 'c:2a31045')`)).toBe('ok')
+    // Other fields leave the character alone.
+    expect(await c.code(LENA, `select update_my_profile(p_name => 'Lena N.')`)).toBe('ok')
+    expect(await c.su(`select character from profiles where id = '${LENA}'`)).toEqual([{ character: 'c:2a31045' }])
+    expect(await c.code(LENA, `select update_my_profile(p_character => '')`)).toBe('ok')
+    expect(await c.su(`select character from profiles where id = '${LENA}'`)).toEqual([{ character: null }])
+  })
+
+  it('rejects malformed codes and direct writes', async () => {
+    // 11-digit codes (with gender, outfit, shoes, facial hair) and older 7-digit ones are both valid.
+    expect(await c.code(OMAR, `select update_my_profile(p_character => 'c:2a310451302')`)).toBe('ok')
+    for (const bad of ['hero:', 'hero:123', 'c:short', 'c:ABCDEFG', '<script>', 'c:12345678901234567']) {
+      expect(await c.code(OMAR, `select update_my_profile(p_character => '${bad}')`)).toMatch(/check|violat/)
+    }
+    expect(await c.code(OMAR, `update profiles set character = 'hero:1' where id = '${OMAR}'`)).toMatch(/permission denied/)
+  })
+
+  it('logs the change so other users get a live refresh', async () => {
+    expect(await c.code(PRIYA, `select update_my_profile(p_character => 'hero:0')`)).toBe('ok')
+    expect(await c.su(`select action from activity_log where user_id = '${PRIYA}' order by id desc limit 1`)).toEqual([{ action: 'character_change' }])
+  })
+})

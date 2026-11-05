@@ -62,7 +62,7 @@ const RPCS: Record<string, Record<string, ArgType>> = {
   join_queue: {},
   leave_queue: {},
   knock: { p_slot_id: 'int' },
-  update_my_profile: { p_name: 'str?', p_work_role: 'str?', p_avatar_color: 'str?', p_device_name: 'str?' },
+  update_my_profile: { p_name: 'str?', p_work_role: 'str?', p_avatar_color: 'str?', p_device_name: 'str?', p_character: 'str?' },
   admin_force_release: { p_slot_id: 'int' },
   admin_remove_from_queue: { p_user_id: 'str' },
   admin_update_profile: { p_user_id: 'str', p_role: 'str?', p_active: 'bool?' },

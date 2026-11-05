@@ -23,7 +23,7 @@ const P = (
   work_role: Profile['work_role'],
   avatar_color: string,
   device_name: string | null,
-): Profile => ({ id, name, role, work_role, active: true, avatar_color, device_name, created_at: '2026-10-01T09:00:00.000Z' })
+): Profile => ({ id, name, role, work_role, active: true, avatar_color, device_name, character: null, created_at: '2026-10-01T09:00:00.000Z' })
 
 export const SEED_PROFILES: Profile[] = [
   // Device names (Windows hostnames) as Adobe's activated-devices page shows them.

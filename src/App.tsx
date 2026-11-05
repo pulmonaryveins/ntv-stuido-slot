@@ -8,6 +8,10 @@ import { ActivityBar, Loader } from './ui/Loader'
 import { TopBar } from './ui/TopBar'
 import { Panel } from './ui/Panel'
 import { ClaimDialog, DeviceNameDialog, SlotDialog } from './ui/Dialogs'
+import { ProfileDialog } from './ui/ProfileDialog'
+import { ClickFx } from './ui/ClickFx'
+import { CharacterEditor } from './ui/CharacterEditor'
+import { WhatsNew } from './ui/WhatsNew'
 import { Toasts } from './ui/Toasts'
 import { AdminPage } from './ui/admin/AdminPage'
 
@@ -122,6 +126,10 @@ function Board() {
       <ClaimDialog />
       <DeviceNameDialog />
       <SlotDialog />
+      <ProfileDialog />
+      <CharacterEditor />
+      <WhatsNew />
+      <ClickFx />
       <Toasts />
     </Tooltip.Provider>
   )

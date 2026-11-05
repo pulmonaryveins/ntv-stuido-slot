@@ -4,6 +4,7 @@ import * as RSelect from '@radix-ui/react-select'
 import * as RPopover from '@radix-ui/react-popover'
 import * as ToggleGroup from '@radix-ui/react-toggle-group'
 import type { Gate } from '../lib/availability'
+import { PixelIcon } from './PixelIcon'
 
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 
@@ -170,7 +171,7 @@ export function Select<T extends string>({
         <RSelect.Content
           position="popper"
           sideOffset={4}
-          className="px-panel z-50 max-h-[min(320px,var(--radix-select-content-available-height))] min-w-[var(--radix-select-trigger-width)] overflow-hidden"
+          className="ss-menu px-panel z-50 max-h-[min(320px,var(--radix-select-content-available-height))] min-w-[var(--radix-select-trigger-width)] overflow-hidden"
         >
           <RSelect.ScrollUpButton className="flex justify-center py-0.5 text-muted">
             <Chevron up />
@@ -272,7 +273,7 @@ export function Popover({
             <div className="mb-2 flex items-center gap-2 border-b-2 border-black pb-2">
               <span className="font-pixel text-sm uppercase">{title}</span>
               <RPopover.Close aria-label="Close" className="ml-auto px-1 text-muted hover:text-ink">
-                ✕
+                <PixelIcon name="close" size={12} />
               </RPopover.Close>
             </div>
           )}

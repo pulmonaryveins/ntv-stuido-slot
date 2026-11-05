@@ -1,13 +1,19 @@
 import { forwardRef, useEffect, useMemo, useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, type ThreeEvent } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Profile, Snapshot } from '../data'
-import type { SceneEvent } from '../store/studio'
+import { useStudio, type SceneEvent } from '../store/studio'
 import { useNow } from '../ui/useNow'
-import { GEO, PAL, hashString, mat, rand } from './kit'
+import { UserAvatar } from '../ui/UserAvatar'
+import { PixelIcon } from '../ui/PixelIcon'
+import { STATE_COLORS, STATUS_META } from '../lib/status'
+import { GEO, hashString, mat, rand } from './kit'
 import { setAnchorPos, useAnchor } from './anchors'
 import { assignCharacters, instantiate, rigLimbs, type Rig } from './Characters'
+import { BlockyFigure, HIP_Y } from './BlockyFigure'
+import { resolveCharacter, type Look } from '../lib/look'
 import { EXIT, HUB, KITCHEN_ROUTE, LOUNGE_SPOTS, IDLE_SPOTS, cartSpot, idleSpot, loungeSpot, type DeskSpot, type XZ } from './layout'
+import { setStageCursor } from './cursor'
 
 type Station =
   | { kind: 'seat'; slotId: number }
@@ -122,7 +128,9 @@ export function Avatars({
     <group>
       {snapshot.profiles
         .filter((p) => p.active)
-        .map((p) => (
+        .map((p) => {
+          const ch = resolveCharacter(p, templates?.length ?? 0, assignment?.get(p.id))
+          return (
           <Avatar
             key={p.id}
             profile={p}
@@ -131,9 +139,11 @@ export function Avatars({
             isMe={p.id === actorId}
             celebrate={celebrating.has(p.id)}
             reducedMotion={reducedMotion}
-            template={templates && assignment ? (templates[assignment.get(p.id) ?? 0] ?? null) : null}
+            template={ch.kind === 'hero' ? (templates?.[ch.index] ?? null) : null}
+            look={ch.kind === 'blocky' ? ch.look : null}
           />
-        ))}
+          )
+        })}
     </group>
   )
 }
@@ -146,6 +156,7 @@ function Avatar({
   celebrate,
   reducedMotion,
   template,
+  look,
 }: {
   profile: Profile
   station: Station
@@ -154,6 +165,8 @@ function Avatar({
   celebrate: boolean
   reducedMotion: boolean
   template: THREE.Object3D | null
+  /** Blocky look when there is no hero model. */
+  look: Look | null
 }) {
   const root = useRef<THREE.Group>(null)
   const body = useRef<THREE.Group>(null)
@@ -185,10 +198,9 @@ function Avatar({
     started: false,
     facing: 0,
     lastKey: '',
+    hover: 0,
   })
   const key = stationKey(station)
-  const skin = PAL.skin[hashString(profile.id) % PAL.skin.length]!
-  const shirt = mat(profile.avatar_color)
 
   useEffect(() => {
     const s = sim.current
@@ -339,10 +351,16 @@ function Avatar({
       limb.o.rotation.z = limb.rz + (k === 'armL' ? armZ : k === 'armR' ? -armZ : 0)
     }
     if (walking) y += Math.abs(Math.sin(t * 11)) * (model ? 0.09 : 0.05)
-    // The blocky avatar's hip sits 0.52 above its root; a model without leg bones cannot bend,
+    // Hovered: lift a little and grow, in two visible steps (reads as a game "select" pop).
+    const hovered = useStudio.getState().hoverUserId === profile.id
+    s.hover += ((hovered ? 1 : 0) - s.hover) * Math.min(1, dt * 14)
+    const pop = reducedMotion ? (hovered ? 1 : 0) : Math.round(s.hover * 2) / 2
+    y += pop * 0.12
+    body.current.scale.setScalar((model ? 1 : 0.95) * (1 + pop * 0.06))
+    // The block character's hip sits HIP_Y * 0.95 (body scale) above its root; a model without leg bones cannot bend,
     // so it settles lower (behind the desk / into the sofa) instead.
     // Hips on the seat: the model's own hip height when rigged, else sink it (no knees to bend).
-    const sitY = model ? (rig ? seatY - rig.hipY : seatY - drop) : seatY - 0.52
+    const sitY = model ? (rig ? seatY - rig.hipY : seatY - drop) : seatY - HIP_Y * 0.95
     body.current.rotation.x = lean
     // Sway sideways relative to facing (ping-pong footwork).
     const sx = Math.cos(g.rotation.y) * sway
@@ -350,6 +368,7 @@ function Avatar({
     g.position.set(s.pos.x + sx, sit ? sitY + y : groundY(s.pos.x, s.pos.z) + y, s.pos.z + sz)
     setAnchorPos(`tag:${profile.id}`, g.position.x, g.position.y + (sit ? 1.9 : 2.0), g.position.z)
     setAnchorPos(`bubble:${profile.id}`, g.position.x, g.position.y + 2.1, g.position.z)
+    setAnchorPos(`name:${profile.id}`, g.position.x, g.position.y + (sit ? 2.0 : 2.15), g.position.z)
     if (isMe) {
       // Above the waiting-list tag so the two never overlap.
       setAnchorPos(`me:${profile.id}`, g.position.x, g.position.y + (sit ? 2.35 : 2.5), g.position.z)
@@ -365,12 +384,33 @@ function Avatar({
   })
   const ring = useRef<THREE.Group>(null)
   const marker = isMe ? <YouRing ref={ring} /> : null
+  const openProfile = useStudio((st) => st.openProfile)
+  const setHoverUser = useStudio((st) => st.setHoverUser)
+  // Click a character for their profile preview. stopPropagation keeps the desk behind a
+  // seated user from also opening its slot modal.
+  const pointer = {
+    onClick: (e: ThreeEvent<MouseEvent>) => {
+      e.stopPropagation()
+      setStageCursor(null)
+      setHoverUser(null)
+      openProfile(profile.id)
+    },
+    onPointerOver: (e: ThreeEvent<PointerEvent>) => {
+      e.stopPropagation()
+      setStageCursor('pointer')
+      setHoverUser(profile.id)
+    },
+    onPointerOut: () => {
+      setStageCursor(null)
+      if (useStudio.getState().hoverUserId === profile.id) setHoverUser(null)
+    },
+  }
 
   if (model) {
     return (
       <>
         {marker}
-        <group ref={root}>
+        <group ref={root} {...pointer}>
           <group ref={body}>
             <primitive object={model} />
           </group>
@@ -382,37 +422,9 @@ function Avatar({
   return (
     <>
     {marker}
-    <group ref={root}>
+    <group ref={root} {...pointer}>
       <group ref={body} scale={0.95}>
-        {/* legs (pivot at hip) */}
-        <group ref={limbRef('legL')} position={[-0.11, 0.55, 0]}>
-          <mesh geometry={GEO.box} material={mat('#3b4255')} position={[0, -0.27, 0]} scale={[0.17, 0.55, 0.19]} castShadow />
-        </group>
-        <group ref={limbRef('legR')} position={[0.11, 0.55, 0]}>
-          <mesh geometry={GEO.box} material={mat('#3b4255')} position={[0, -0.27, 0]} scale={[0.17, 0.55, 0.19]} castShadow />
-        </group>
-        {/* torso */}
-        <mesh geometry={GEO.box} material={shirt} position={[0, 0.83, 0]} scale={[0.46, 0.58, 0.28]} castShadow />
-        {/* arms (pivot at shoulder) */}
-        <group ref={limbRef('armL')} position={[-0.3, 1.08, 0]}>
-          <mesh geometry={GEO.box} material={shirt} position={[0, -0.24, 0]} scale={[0.13, 0.48, 0.15]} />
-          <mesh geometry={GEO.box} material={mat(skin)} position={[0, -0.52, 0]} scale={[0.11, 0.1, 0.12]} />
-        </group>
-        <group ref={limbRef('armR')} position={[0.3, 1.08, 0]}>
-          <mesh geometry={GEO.box} material={shirt} position={[0, -0.24, 0]} scale={[0.13, 0.48, 0.15]} />
-          <mesh geometry={GEO.box} material={mat(skin)} position={[0, -0.52, 0]} scale={[0.11, 0.1, 0.12]} />
-        </group>
-        {/* head */}
-        {/* cube head, hair cap + back, pixel eyes */}
-        <mesh geometry={GEO.box} material={mat(skin)} position={[0, 1.36, 0]} scale={0.44} castShadow />
-        <mesh geometry={GEO.box} material={mat('#3a2a22')} position={[0, 1.61, 0]} scale={[0.48, 0.1, 0.48]} />
-        <mesh geometry={GEO.box} material={mat('#3a2a22')} position={[0, 1.44, -0.2]} scale={[0.48, 0.3, 0.1]} />
-        <mesh geometry={GEO.box} material={mat(PAL.white)} position={[-0.1, 1.38, 0.222]} scale={[0.09, 0.06, 0.01]} />
-        <mesh geometry={GEO.box} material={mat(PAL.white)} position={[0.1, 1.38, 0.222]} scale={[0.09, 0.06, 0.01]} />
-        <mesh geometry={GEO.box} material={mat(PAL.ink)} position={[-0.08, 1.38, 0.226]} scale={[0.045, 0.06, 0.01]} />
-        <mesh geometry={GEO.box} material={mat(PAL.ink)} position={[0.12, 1.38, 0.226]} scale={[0.045, 0.06, 0.01]} />
-        <mesh geometry={GEO.box} material={mat('#b97b55')} position={[0, 1.26, 0.222]} scale={[0.12, 0.03, 0.01]} />
-        <RoleProp role={profile.work_role} color={profile.avatar_color} />
+        {look && <BlockyFigure look={look} limbRef={limbRef} />}
       </group>
     </group>
     </>
@@ -500,39 +512,11 @@ export function KnockBubble({ userId }: { userId: string }) {
   const anchor = useAnchor(`bubble:${userId}`, 0, -100, 0)
   return (
     <div ref={anchor} className="pointer-events-none absolute left-0 top-0">
-      <div className="whitespace-nowrap border-2 border-line bg-surface px-2 py-0.5 text-[11px] font-semibold text-ink shadow">
-        Knock knock ✊
+      <div className="ss-tag-in flex items-center gap-1.5 whitespace-nowrap border-2 border-line bg-surface px-2 py-0.5 text-[11px] font-semibold text-ink shadow">
+        <PixelIcon name="door" size={14} anim="shake" />
+        Knock knock
       </div>
     </div>
-  )
-}
-
-/** headphones = editor, glasses = designer, beanie = motion */
-function RoleProp({ role, color }: { role: Profile['work_role']; color: string }) {
-  if (role === 'editor') {
-    return (
-      <group>
-        <mesh geometry={GEO.box} material={mat(PAL.ink)} position={[0, 1.62, 0]} scale={[0.5, 0.05, 0.08]} />
-        <mesh geometry={GEO.cyl} material={mat(PAL.ink)} position={[-0.24, 1.38, 0]} rotation={[0, 0, Math.PI / 2]} scale={[0.17, 0.08, 0.17]} />
-        <mesh geometry={GEO.cyl} material={mat(PAL.ink)} position={[0.24, 1.38, 0]} rotation={[0, 0, Math.PI / 2]} scale={[0.17, 0.08, 0.17]} />
-      </group>
-    )
-  }
-  if (role === 'designer') {
-    return (
-      <group position={[0, 1.38, 0.235]}>
-        <mesh geometry={GEO.box} material={mat(PAL.ink)} position={[-0.09, 0, 0]} scale={[0.13, 0.09, 0.02]} />
-        <mesh geometry={GEO.box} material={mat(PAL.ink)} position={[0.09, 0, 0]} scale={[0.13, 0.09, 0.02]} />
-        <mesh geometry={GEO.box} material={mat(PAL.ink)} position={[0, 0.01, 0]} scale={[0.06, 0.02, 0.02]} />
-      </group>
-    )
-  }
-  return (
-    <group>
-      <mesh geometry={GEO.box} material={mat(color)} position={[0, 1.66, 0]} scale={[0.5, 0.22, 0.5]} />
-      <mesh geometry={GEO.box} material={mat(PAL.cream)} position={[0, 1.56, 0]} scale={[0.52, 0.07, 0.52]} />
-      <mesh geometry={GEO.box} material={mat(PAL.cream)} position={[0, 1.83, 0]} scale={0.12} />
-    </group>
   )
 }
 
@@ -625,5 +609,31 @@ export function Dog({ reducedMotion }: { reducedMotion: boolean }) {
       ))}
       <mesh ref={tail} geometry={GEO.box} material={mat('#c48a52')} position={[0, 0.5, -0.34]} scale={[0.06, 0.06, 0.22]} />
     </group>
+  )
+}
+
+/** Nameplate over the character under the mouse: portrait, name and what they are up to. */
+export function HoverTag({ profile, snapshot, isMe }: { profile: Profile; snapshot: Snapshot; isMe: boolean }) {
+  const anchor = useAnchor(`name:${profile.id}`, 0, -100, 0)
+  const slot = snapshot.slots.find((s) => s.user_id === profile.id)
+  const queued = snapshot.queue.some((q) => q.user_id === profile.id)
+  const meta = slot?.status ? STATUS_META[slot.status] : null
+  const status = meta ? meta.label : queued ? 'Waiting' : 'Around'
+  const color = meta?.color ?? (queued ? STATE_COLORS.reserved : STATE_COLORS.free)
+  // Lift clear of the "#n waiting" tag or the "You" badge that sit on the same character.
+  const lift = isMe && !slot ? 'pb-12' : queued ? 'pb-7' : ''
+  return (
+    <div ref={anchor} className={`pointer-events-none absolute left-0 top-0 ${lift}`}>
+      <div className="ss-tag-in on-dark flex items-center gap-2 border-2 border-black bg-surface py-1 pl-1 pr-2.5 shadow-[inset_0_2px_0_var(--hi),3px_3px_0_rgba(0,0,0,0.35)]">
+        <UserAvatar profile={profile} size={26} />
+        <div className="leading-tight">
+          <div className="max-w-36 truncate text-[13px] font-semibold text-white">{profile.name}</div>
+          <div className="font-pixel flex items-center gap-1 text-[10px] uppercase text-muted">
+            <span className="size-1.5 border border-black" style={{ background: color }} />
+            {status} · click for profile
+          </div>
+        </div>
+      </div>
+    </div>
   )
 }

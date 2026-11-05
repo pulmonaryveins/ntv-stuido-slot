@@ -66,6 +66,8 @@ export function describeActivity(e: ActivityEntry, snapshot: Snapshot): { icon: 
       return { icon: 'shield', text: `${who} renamed an Adobe account to ${(e.meta as { label?: string })?.label ?? '?'}` }
     case 'settings_update':
       return { icon: 'shield', text: `${who} changed the session rules` }
+    case 'character_change':
+      return { icon: 'user', text: `${who} has a new look` }
     case 'overdue':
       return { icon: 'warn', text: `${target} is over time on ${where}` }
     default:
